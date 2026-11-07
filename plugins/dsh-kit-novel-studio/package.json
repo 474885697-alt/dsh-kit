@@ -1,0 +1,32 @@
+{
+  "name": "dsh-kit-novel-studio",
+  "version": "0.1.0",
+  "description": "长篇小说设定库：人物、世界规则、时间线与术语存为 JSON，写作时注入摘要，并在成稿前发现前后矛盾。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "novel",
+    "writing",
+    "continuity"
+  ],
+  "license": "MIT"
+}

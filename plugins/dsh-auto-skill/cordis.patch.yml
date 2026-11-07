@@ -1,0 +1,5 @@
+# Loads after the base skill catalog so auto-matched skills can be injected
+# into the same turn the user asked for.
+- insert:
+    - id: auto-skill
+      name: dsh-auto-skill

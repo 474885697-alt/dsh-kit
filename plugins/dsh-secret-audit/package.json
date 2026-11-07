@@ -1,0 +1,13 @@
+{
+  "name": "dsh-secret-audit",
+  "version": "0.1.0",
+  "description": "本地密钥审计：找出明文 API Key、检查密钥共享开关，输出打码报告，绝不打印完整密钥。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": { ".": "./lib/index.js", "./package.json": "./package.json" },
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "engines": { "node": ">=20" },
+  "files": ["lib", "cordis.patch.yml", "README.md"],
+  "keywords": ["dsh", "dsh-plugin", "secrets", "security", "audit"],
+  "license": "MIT"
+}

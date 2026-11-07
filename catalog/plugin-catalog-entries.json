@@ -1,0 +1,451 @@
+{
+  "plugins": [
+    {
+      "name": "dsh-kit-guardian",
+      "title": "插件清单体检与回滚",
+      "description": {
+        "zh": "配置清单与启动体检：校验清单 JSON、依赖与打包与补丁三处一致、最近崩溃原因，并支持备份与一键回滚。",
+        "en": "Profile manifest health guard: JSON, bundle/dependency/patch consistency, crash attribution, backup and rollback."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-guardian",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-guardian",
+        "directory": "plugins/dsh-kit-guardian"
+      },
+      "metadata": {
+        "category": "safety",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "deepseek-harness",
+          "profile",
+          "diagnostics"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-secret-audit",
+      "title": "明文密钥审计",
+      "description": {
+        "zh": "本地密钥审计：找出明文 API Key、检查密钥共享开关，输出打码报告，绝不打印完整密钥。",
+        "en": "Plaintext secret audit with masked findings, git-exposure flags and sharing-switch summary."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-secret-audit",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-secret-audit",
+        "directory": "plugins/dsh-secret-audit"
+      },
+      "metadata": {
+        "category": "safety",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "secrets",
+          "security",
+          "audit"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-kit-novel-studio",
+      "title": "小说设定库与连续性校验",
+      "description": {
+        "zh": "长篇小说设定库：人物、世界规则、时间线与术语存为 JSON，写作时注入摘要，并在成稿前发现前后矛盾。",
+        "en": "Continuity bible for long-form fiction: characters, rules, timeline, glossary, digest and contradiction checks."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-novel-studio",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-novel-studio",
+        "directory": "plugins/dsh-kit-novel-studio"
+      },
+      "metadata": {
+        "category": "writing",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "novel",
+          "writing",
+          "continuity"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-audio-post",
+      "title": "音频后期处理",
+      "description": {
+        "zh": "本地音频后期：响度标准化、静音裁剪、格式转换，以及游戏音效与音乐平台上传的一键预设，由本机 ffmpeg 驱动。",
+        "en": "Audio finishing with local ffmpeg: loudness, silence trimming, conversion and presets."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-audio-post",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-audio-post",
+        "directory": "plugins/dsh-audio-post"
+      },
+      "metadata": {
+        "category": "media",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "audio",
+          "ffmpeg",
+          "loudness"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-rulebook",
+      "title": "规则书结构化",
+      "description": {
+        "zh": "把桌游或跑团规则书（docx/txt/md）抽成结构化 JSON：章节、编号条款、关键词表与数值，并检查缺失数值和重复条目。",
+        "en": "Turn a tabletop rulebook into structured JSON with a sanity check."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-rulebook",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-rulebook",
+        "directory": "plugins/dsh-rulebook"
+      },
+      "metadata": {
+        "category": "gaming",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "rulebook",
+          "docx",
+          "tabletop"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-build-ship",
+      "title": "构建与出货",
+      "description": {
+        "zh": "构建与出货流水线：执行构建命令、收集产物、校验预期输出与哈希，每次运行留一份报告。",
+        "en": "Run a build, collect artifacts with hashes, verify outputs and keep a report per run."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-build-ship",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-build-ship",
+        "directory": "plugins/dsh-build-ship"
+      },
+      "metadata": {
+        "category": "devtools",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "build",
+          "release",
+          "artifacts"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-kit-ai-gateway",
+      "title": "本机密钥池",
+      "description": {
+        "zh": "本机 AI 密钥池：密钥只存一处，通过仅限本机的接口按用量轮询借出，统计调用次数但不转发请求。",
+        "en": "Loopback key pool that hands out the least-used enabled key and tracks usage."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-ai-gateway",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-ai-gateway",
+        "directory": "plugins/dsh-kit-ai-gateway"
+      },
+      "metadata": {
+        "category": "devtools",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "gateway",
+          "api-keys",
+          "local"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-kit-session-hygiene",
+      "title": "会话清理与归档",
+      "description": {
+        "zh": "会话打理：看清会话存储涨在哪、安全归档旧会话，只有明确确认令牌才真正删除。",
+        "en": "Report session storage growth, archive old sessions, delete only with an explicit token."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-session-hygiene",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-session-hygiene",
+        "directory": "plugins/dsh-kit-session-hygiene"
+      },
+      "metadata": {
+        "category": "devtools",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "sessions",
+          "cleanup",
+          "archive"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-kit-config-sync",
+      "title": "技能与插件配置同步",
+      "description": {
+        "zh": "技能与插件配置快照：变更自动保存，换机器一键恢复；支持本地快照、GitHub Gist 或自建 HTTP 端点，密钥自动脱敏。",
+        "en": "Snapshot skills and plugin setup, auto-save on change, restore on another machine (local, gist or http)."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-config-sync",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-kit-config-sync",
+        "directory": "plugins/dsh-kit-config-sync"
+      },
+      "metadata": {
+        "category": "devtools",
+        "keywords": [
+          "dsh",
+          "dsh-plugin",
+          "sync",
+          "config",
+          "skills"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-auto-skill",
+      "title": "自动匹配技能",
+      "description": {
+        "zh": "按当前任务自动挑选并注入最合适的技能，无需点名或手动插入；同一技能每次会话只注入一次，并可从有效操作中积累经验。",
+        "en": "Match the current task to installed skills and inject the best one without naming it."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-auto-skill",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-auto-skill",
+        "directory": "plugins/dsh-auto-skill"
+      },
+      "metadata": {
+        "category": "agent",
+        "keywords": [
+          "dsh",
+          "dsh-plugin"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.2.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-prose-polish",
+      "title": "中文润色",
+      "description": {
+        "zh": "实时中文润色：保留事实、去掉 AI 味，支持流式预览、差异友好的输出，以及 Agent 可直接调用的润色工具。",
+        "en": "Chinese prose polish that keeps facts and removes AI writing habits, with streaming preview."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-prose-polish",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-prose-polish",
+        "directory": "plugins/dsh-prose-polish"
+      },
+      "metadata": {
+        "category": "writing",
+        "keywords": [
+          "dsh",
+          "dsh-plugin"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-project-checkup",
+      "title": "项目体检",
+      "description": {
+        "zh": "项目体检：语法与资源快检加完整健康报告；检查项写在项目里的 dsh-checkup.json，换项目不用改代码。",
+        "en": "Project checkup driven by a dsh-checkup.json profile, plus an auto-detected default."
+      },
+      "homepage": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-project-checkup",
+      "repository": {
+        "url": "https://github.com/474885697-alt/dsh-kit/tree/main/plugins/dsh-project-checkup",
+        "directory": "plugins/dsh-project-checkup"
+      },
+      "metadata": {
+        "category": "devtools",
+        "keywords": [
+          "dsh",
+          "dsh-plugin"
+        ],
+        "labels": [
+          "dsh-plugin"
+        ],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "node": ">=20"
+          }
+        }
+      ]
+    }
+  ]
+}

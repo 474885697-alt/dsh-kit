@@ -1,0 +1,3 @@
+- insert:
+    - id: config-sync
+      name: dsh-kit-config-sync

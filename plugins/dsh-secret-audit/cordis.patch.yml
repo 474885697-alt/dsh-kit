@@ -1,0 +1,3 @@
+- insert:
+    - id: secret-audit
+      name: dsh-secret-audit

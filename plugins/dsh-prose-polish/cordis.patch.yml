@@ -1,0 +1,6 @@
+# dsh-prose-polish bundle patch: adds the prose-polish row to the web profile roster.
+# The node half registers /api/dsh-prose-polish routes and the polish_text Agent tool;
+# the browser half injects the sidebar "实时润色" panel.
+- insert:
+    - id: prose-polish
+      name: dsh-prose-polish
