@@ -1,6 +1,6 @@
 # dsh-kit
 
-DSH（DeepSeek Harness）本地插件与技能合集：**16 个插件 + 12 个技能**，全部在本机实际使用中打磨，代码为纯 ESM、无运行时依赖。
+DSH（DeepSeek Harness）本地插件与技能合集：**17 个插件 + 12 个技能**，全部在本机实际使用中打磨，代码为纯 ESM、无运行时依赖。
 
 - 插件：宿主侧（host-only）为主，工具 + HTTP 路由，可安装在桌面端与 headless 端。
 - 技能：`SKILL.md` 标准格式，放入 `~/.dsh/skills/` 即被扫描加载。
@@ -26,6 +26,7 @@ DSH（DeepSeek Harness）本地插件与技能合集：**16 个插件 + 12 个�
 | `dsh-cost-gate` | 派活前的成本闸门：峰谷估价、阈值拦截、限时放行 | `cost_gate` |
 | `dsh-round-triage` | 回合结束按规则归类新文件，只移动安全、未跟踪的新文件 | `round_triage` |
 | `dsh-team-ops` | 团队工单板、10 角色、审批门、QQ 回执与待答队列 | `team_task_*` `team_approval` `team_pending_*` |
+| `dsh-auto-approve` | 审批白名单：把 allowlist 工具的 ask / auto-review 硬拒绝改为放行，保留成本闸门与危险工具拒绝 | —（路由 `/api/dsh-auto-approve/status`） |
 
 每个插件目录里都有中文 `README.md`：工具参数、路由、配置、数据位置、安全边界、验收方式。
 

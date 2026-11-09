@@ -184,3 +184,43 @@
 - 做法：本轮任务的有效操作链：team_task_get → send_message
 - 依据：关键调用参数：team_task_get: {"task_id":"task-14"} ; send_message: {"target":"hub","message":"task-11（WO-1a）完成，commit `58629fb`（3 files +494，仅 tools/team-ops-plugin/lib/guard-policy.cjs、lib/role-guard.cjs、te
 - 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T07:28:46.601Z [auto] <!-- h:1a36dc9477ac -->
+- 做法：本轮任务的有效操作链：edit → read → edit → edit → edit → pwsh → send_message → pwsh
+- 依据：关键调用参数：pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; $p='docs/中枢/需求/收件箱.md'; $lines = Get-Content -LiteralPath $p  ; send_message: {"message":"【task-14 独立验收（mechanics@2ba5f4e）】\n对象：`_mechanics@2ba5f4e`，3 files +49/−3，只读；你只写 `docs/tmp/qa/`。\n验收点：\n1) `git show --stat 2ba5 ; pwsh: {"command":"$f='C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\test\\approval-gate.mjs'; Get-Cont
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T07:28:54.181Z [auto] <!-- h:0069f3872115 -->
+- 做法：本轮任务的有效操作链：pwsh → team_task_list → pwsh
+- 依据：关键调用参数：pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; $lines = Get-Content -LiteralPath 'docs/中枢/需求/收件箱.md' -Encodi ; team_task_list: {"status":"pending","limit":20} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_mechanics'; git status --porcelain; '---'; git log -1 --format='%H
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:34:07.115Z [auto] <!-- h:442aa168f6f5 -->
+- 做法：本轮任务的有效操作链：send_message(失败) → pwsh → send_message(失败) → pwsh → pwsh → plugin_manager → pwsh → send_message
+- 依据：关键调用参数：plugin_manager: {"action":"set_bundle","enabled":true,"target":"@deepseek-ai/dsh-experimental-auto-review"} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release'; node tools/team-ops-plugin/test/smoke.mjs > ..\\_qa\\docs ; send_message: {"message":"【仅连通性测试，不用干活】收到请回一行「mechanics 在线」，然后继续待命，不要改文件、不要领单。","target":"mechanics"}
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:35:02.578Z [auto] <!-- h:ec27b478b784 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → read → pwsh → read → read → read
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":90,"off ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":80,"off ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\test\\role-guard-wiring.mjs","limit"
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:36:11.726Z [auto] <!-- h:4a4ee96c0c03 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → pwsh → pwsh → compress → compress → compress
+- 依据：关键调用参数：compress: {"content":"m00240–m00269 task-11 按 A 收尾\n【Lead 决定 m00241】task-11 按 **A** 收：不补 merge/canMerge 到 v1；报告改 **pass（带明确边界）**，保留 35/35、probe 23/23、 ; compress: {"content":"m00271–m00391 task-14 旧档绑定独立验收\n【派单】Lead：对象 `_mechanics@2ba5f4e`，3 files +49/−3，只读；qa 只写 `docs/tmp/qa/`。验收 4 点：① commit 只改 part- ; compress: {"content":"m00394–m00434 task-12 role-guard 接线独立验收（进行中）\n【派单 m00393】Lead：tools 完成 task-12 `module/release@57b01eb`，仅 `lib/index.js` + `test
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:36:55.543Z [auto] <!-- h:500699af2f04 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh
+- 依据：关键调用参数：pwsh: {"command":"$p='C:\\Users\\03\\.dsh\\profiles\\wo1b'; if (Test-Path $p) { Get-ChildItem $p | Select-Object Name,Length,LastWriteTime | Forma ; pwsh: {"command":"$h=\"$env:TEMP\\dsh-home-wo1b\"; Get-ChildItem $h -Force | Select-Object Name,Length,LastWriteTime | Format-Table -AutoSize; if  ; pwsh: {"command":"$env:DSH_HOME=\"$env:TEMP\\dsh-home-wo1b\"; Set-Location $env:TEMP; & 'D:\\deepseek\\resources\\runtime\\cli\\bin\\dsh.cmd' --pr
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:37:45.404Z [auto] <!-- h:2addc83dab25 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → pwsh → pwsh → pwsh → pwsh
+- 依据：关键调用参数：pwsh: {"command":"$ProgressPreference='SilentlyContinue'; try { $r=Invoke-WebRequest 'http://127.0.0.1:6425/api/team-ops/health' -UseBasicParsing  ; pwsh: {"command":"curl.exe -s -i http://127.0.0.1:6425/api/team-ops/health","description":"Curl team-ops health raw response"} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin'; Select-String -Path lib/index.js
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203
+
+## 2026-11-09T07:38:48.706Z [auto] <!-- h:4ac519e597e7 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → pwsh → team_task_list → send_message → list_agents → send_message
+- 依据：关键调用参数：send_message: {"target":"lead","message":"1) task-12 验收结论 pass（带边界）：对象 `_release@57b01eb`，`git show --name-status` 恰 2 文件（lib/index.js、test/role-guard-wir ; list_agents: {} ; send_message: {"message":"【task-12 role-guard 接线 qa 独立验收结论：pass（带边界）】\n- 对象：`_release@57b01eb`（module/release，只读），恰 2 文件：lib/index.js、test/role-guard-wiri
+- 会话：e6e55e56-6d9e-4f59-ae59-ba276d17b203

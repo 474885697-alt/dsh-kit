@@ -1,6 +1,7 @@
 {
   "plugins": [
     "dsh-audio-post",
+    "dsh-auto-approve",
     "dsh-auto-skill",
     "dsh-build-ship",
     "dsh-comfyui",

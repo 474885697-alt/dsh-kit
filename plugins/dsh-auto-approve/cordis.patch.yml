@@ -1,0 +1,4 @@
+# dsh-auto-approve bundle patch: adds the auto-approve row to the profile roster.
+- insert:
+    - id: auto-approve
+      name: dsh-auto-approve

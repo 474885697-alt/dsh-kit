@@ -1,7 +1,3 @@
-## 2026-11-08T12:41:55.633Z [manual] <!-- h:3f399d83d74b -->
-- 做法：验证寻神者地图锁定提示是否常显时，先把 map.revealed 设为全部地块、但保留起始 map.pos；getMapSideQuestLocks 只返回已揭示且被锁的地块，未揭示会让 sideLocks 为空、误判「没有提示」。探针还应统计跨支线 seed 数与 QA 命中数对齐。
-- 依据：probe-side-lock-banner.cjs 首跑 found=0/locks=[]，改为 revealAll + 起始 pos 后 11/11 通过，cross seed 139/2。
-
 ## 2026-11-08T12:43:52.942Z [manual] <!-- h:3325aa30070b -->
 - 做法：验收「UI 提示是否常显」时，用真实起始态 map.pos（不要 hover/合成相邻态）渲染 renderSandboxMapPanel，读 .sandbox-quest-hint/.sandbox-explore-next 的 textContent 并截图 1440/390；再用 5000 seeds 回归 hint 计数确认文案路径未变。
 - 依据：task-45 delta：4cff20e 前该缺口只在 title/aria 可见；起始态 pos=14 读横幅命中全句、390 sw=iw、139/2 未增，据此关闭 conditional。
@@ -280,3 +276,7 @@
 ## 2026-11-09T07:18:20.190Z [manual] <!-- h:0007b858e0ee -->
 - 做法：docs/tmp 被 .gitignore 忽略：写 `docs/tmp/mechanics/*.md` 报告后 `git status` 不会显示、也不会进 commit；交付时按「落盘路径」报告即可，不要 git add -f。要留档进历史的方案/设计文档应放 `docs/设计/` 并正常提交。
 - 依据：task-10：复核清单放 docs/tmp/mechanics/ 后 git status 仅显示 docs/设计 下的方案文件；git check-ignore -v 确认 .gitignore:16 忽略 docs/tmp/。
+
+## 2026-11-09T07:28:08.771Z [manual] <!-- h:5e01419ed303 -->
+- 做法：需要浏览器级验收时：先 `node tools/build-all.cjs` 生成 index.html，`$env:PORT=3214; node server.js` 起独立端口，用 `node_modules/playwright-core` + 本机 `C:/Program Files/Google/Chrome/Application/chrome.exe` 写夹具脚本，admin reload 后 page.evaluate 直接调全局函数（openCharacterPage/readSaveSlotStore/importSaveCode）并断言 localStorage/state；验收完 `git checkout -- index.html`（生成物非写域），并 kill 后台 server。若 smoke 失败，先 `git checkout -- index.html` 跑 HEAD 基线对比，区分既有失败。
+- 依据：task-14：fixture 13/13 exit 0；smoke 的 races 9<16 在 HEAD 基线同样失败，判定非回归；提交仅 3 个源文件。

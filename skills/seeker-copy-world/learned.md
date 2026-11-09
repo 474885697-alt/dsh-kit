@@ -255,3 +255,8 @@
 - 做法：本轮任务的有效操作链：read → pwsh → pwsh → send_message → pwsh → read → send_message → pwsh
 - 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_mechanics\\src\\app\\part-90-features.js","limit":80,"offset":2258} ; send_message: {"message":"【WO-1/WO-2 建好，未唤醒】三单串行，owner 全 tools：\n- task-11「工具：实现 role-guard 核心判定与策略表（WO-1a）」¥0.65（估 ¥0.65，谷 ¥0.33），无依赖，ready。\n- task-12「工 ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_mechanics'; Write-Output '== milestone use =='; Select-String -Path
 - 会话：b4267385-cb53-4010-b071-e3c4dff3fd40
+
+## 2026-11-09T07:27:52.916Z [auto] <!-- h:4043a8750b31 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → list_agents → pwsh → pwsh → read → read → send_message
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":55,"off ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":20,"off ; send_message: {"target":"hub","message":"【task-14 完成】commit `2ba5f4e`（module/mechanics；3 files +49/−3，未 merge、未改 data、只提交写域 3 文件）。\n1) `src/app/part-08.js
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf

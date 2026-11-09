@@ -186,3 +186,8 @@
 - 做法：本轮任务的有效操作链：team_task_create → team_task_create → grep → pwsh → read_image → edit → edit → send_message
 - 依据：关键调用参数：edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","old_string":"| 4 卡已建；84 pass、85 in_progres ; edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\决策\\2026-11-08-同步与战术暂停.md","old_string":"报用户确认后再建/改卡。" ; send_message: {"message":"【新工单 task-4，只读评审】claim task-4（rev1）后一次干完，最多 2 轮，约 15 分钟。\n- 读 `_mechanics/docs/设计/机制优化方案-2026-11-09.md`（未跟踪），输出 1 页评审：可执行/需数据验证/
 - 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T07:57:57.169Z [auto] <!-- h:c546c79bb993 -->
+- 做法：本轮任务的有效操作链：edit → edit → edit → pwsh → plugin_manager → plugin_manager → pwsh → send_message
+- 依据：关键调用参数：plugin_manager: {"action":"set_bundle","enabled":true,"target":"dsh-auto-approve"} ; pwsh: {"command":"try { Invoke-RestMethod 'http://127.0.0.1:53207/api/dsh-auto-approve/status' -TimeoutSec 5 | ConvertTo-Json -Compress } catch {  ; send_message: {"message":"已更新并重载（startedAt 15:57:43）：现在对 allowlist 工具，auto-review 的硬 deny 也会被改写为放行（role-guard/cost-gate 的拒绝仍保留）。\n请再跑同一测试：\n1) `create_ski
+- 会话：b4267385-cb53-4010-b071-e3c4dff3fd40

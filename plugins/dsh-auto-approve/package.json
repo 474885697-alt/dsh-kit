@@ -1,0 +1,35 @@
+{
+  "name": "dsh-auto-approve",
+  "version": "0.1.0",
+  "description": "Deterministic approval answerer: converts selected tools' approval asks into allowed-once, so teammates stop receiving auto-review denials and the user stops receiving prompts. Hard-denies dangerous tools; skips cost-gate asks.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node test/auto-approve.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "approval",
+    "auto-approve",
+    "team"
+  ],
+  "license": "MIT"
+}
