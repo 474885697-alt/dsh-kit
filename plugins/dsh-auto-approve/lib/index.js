@@ -15,7 +15,7 @@
  * Safety:
  * - allowlist is explicit; default: generate_comfyui, create_skill, generate_audio
  * - hard deny: spawn_teammate, interrupt_agent, plugin_manager, team_approval
- * - cost-gate asks are preserved (reason starts with "cost-gate:")
+ * - cost-gate asks are turned into an explicit deny that names dsh-cost-gate
  * - every conversion is appended to ~/.dsh/dsh-auto-approve/audit.jsonl
  */
 import { appendFileSync, mkdirSync } from 'node:fs'
@@ -87,8 +87,28 @@ export function decide(exec, decision, tools) {
     return { kind: 'allow' }
   }
   if (decision.kind !== 'ask') return decision
-  // Preserve the cost gate: it asks for a reason, not for permission.
-  if (reason.startsWith('cost-gate:')) return decision
+  // The cost gate asks for a reason, not for permission. Preserve the block,
+  // but make it a deny with an explicit display reason so the caller sees
+  // "cost-gate (dsh-cost-gate) blocked" instead of a generic rejection.
+  if (reason.startsWith('cost-gate:')) {
+    record({
+      ts: new Date().toISOString(),
+      tool,
+      sessionTail: sessionTail(exec),
+      decision: 'cost-gate-blocked',
+      reason: reason.slice(0, 500),
+    })
+    const original = decision.displayReason && typeof decision.displayReason === 'object'
+      ? decision.displayReason
+      : null
+    const zh = '成本闸门（dsh-cost-gate）拦截：' + String(
+      original && original.zh ? original.zh.replace(/^成本闸门：/, '') : reason.replace(/^cost-gate:\s*/, ''),
+    )
+    const en = 'cost-gate (dsh-cost-gate) blocked: ' + String(
+      original && original.en ? original.en.replace(/^cost-gate:\s*/, '') : reason,
+    )
+    return { kind: 'deny', reason, displayReason: { zh, en } }
+  }
   record({
     ts: new Date().toISOString(),
     tool,

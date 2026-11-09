@@ -25,10 +25,14 @@ const exec = (name, sessionId = 'session-12345678') => ({
   const ask = { kind: 'ask', reason: 'needs approval' }
   assert.equal(decide(exec('other_tool'), ask, TOOLS), ask)
 }
-// 3. cost-gate ask preserved
+// 3. cost-gate ask becomes an explicit deny that names the plugin
 {
   const ask = { kind: 'ask', reason: 'cost-gate: generate_comfyui is gated because model(s) deepseek-flash are in peak hours.' }
-  assert.equal(decide(exec('generate_comfyui'), ask, TOOLS), ask)
+  const out = decide(exec('generate_comfyui'), ask, TOOLS)
+  assert.equal(out.kind, 'deny')
+  assert.equal(out.reason, ask.reason)
+  assert.match(out.displayReason.zh, /dsh-cost-gate/)
+  assert.match(out.displayReason.zh, /成本闸门/)
 }
 // 4. deny never overridden (non-auto-review)
 {
@@ -55,15 +59,17 @@ const exec = (name, sessionId = 'session-12345678') => ({
   const ask = { kind: 'ask', reason: 'plugin install' }
   assert.equal(decide(exec('plugin_manager'), ask, new Set(['plugin_manager'])), ask)
 }
-// 7. audit lines written (ask conversion + auto-review override)
+// 7. audit lines written (ask conversion + cost-gate block + auto-review override)
 {
   const lines = readFileSync(AUDIT, 'utf8').trim().split('\n')
-  assert.equal(lines.length, 2)
+  assert.equal(lines.length, 3)
   const row = JSON.parse(lines[0])
   assert.equal(row.tool, 'generate_comfyui')
   assert.equal(row.decision, 'allowed-once')
   assert.equal(row.sessionTail, '12345678')
-  const override = JSON.parse(lines[1])
+  const blocked = JSON.parse(lines[1])
+  assert.equal(blocked.decision, 'cost-gate-blocked')
+  const override = JSON.parse(lines[2])
   assert.equal(override.decision, 'allowed-override')
 }
 
