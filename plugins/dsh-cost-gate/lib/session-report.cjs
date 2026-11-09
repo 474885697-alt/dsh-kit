@@ -82,21 +82,9 @@ function walkSessionFiles(root) {
   return files
 }
 
-function readSessionText(file, zstdAvailable) {
-  if (!file.endsWith('.zstd')) return fs.readFileSync(file, 'utf8')
-  if (typeof zlib.zstdDecompressSync === 'function') {
-    try {
-      return zlib.zstdDecompressSync(fs.readFileSync(file)).toString('utf8')
-    } catch {
-      // 不是 zstd 帧或 Node 解码失败时，回退到系统命令
-    }
-  }
-  const out = spawnSync('zstd', ['-dc', file], {
-    maxBuffer: 128 * 1024 * 1024,
-    windowsHide: true,
-  })
-  if (!out.error && out.status === 0) return out.stdout.toString('utf8')
-  // 宿主 Node 的 zstd 不可用 / 系统无 zstd 时，交给本机 Node（≥22.15）解压。
+function readViaNode(file) {
+  // 会话文件是多帧 zstd，宿主 Node 的 zstdDecompressSync 只解第一帧；
+  // 本机 node（≥22.15）能解整串帧，优先用它，失败再退回进程内解码。
   const helper = "const fs=require('fs'),z=require('zlib');"
     + "try{process.stdout.write(z.zstdDecompressSync(fs.readFileSync(process.argv[1])).toString('utf8'))}"
     + "catch(e){process.stderr.write(String((e&&e.message)||e));process.exit(2)}"
@@ -105,6 +93,28 @@ function readSessionText(file, zstdAvailable) {
     windowsHide: true,
   })
   if (!node.error && node.status === 0) return node.stdout.toString('utf8')
+  return null
+}
+
+function readSessionText(file, zstdAvailable) {
+  if (!file.endsWith('.zstd')) return fs.readFileSync(file, 'utf8')
+  if (typeof zlib.zstdDecompressSync === 'function') {
+    try {
+      const buf = zlib.zstdDecompressSync(fs.readFileSync(file))
+      const size = fs.statSync(file).size
+      // 宿主 Node 只解第一帧：大文件却只解出几百字节，视为截断，改用外部 node。
+      if (!(size > 1024 * 1024 && buf.length < 4096)) return buf.toString('utf8')
+    } catch {
+      // 不是 zstd 帧或 Node 解码失败时，回退到系统命令
+    }
+  }
+  const viaNode = readViaNode(file)
+  if (viaNode !== null) return viaNode
+  const out = spawnSync('zstd', ['-dc', file], {
+    maxBuffer: 128 * 1024 * 1024,
+    windowsHide: true,
+  })
+  if (!out.error && out.status === 0) return out.stdout.toString('utf8')
   const stderr = out.stderr ? out.stderr.toString('utf8').trim() : ''
   const reason = out.error ? out.error.message : `zstd -dc 失败（${out.status}）${stderr ? '：' + stderr : ''}`
   const error = new Error(reason)

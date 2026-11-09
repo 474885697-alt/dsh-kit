@@ -27,6 +27,21 @@ export const inject = ['tools']
 
 const DIR = dirname(fileURLToPath(import.meta.url))
 const GATED = ['spawn_teammate', 'generate_audio', 'generate_comfyui']
+
+function readDailyCache(days) {
+  try {
+    const file = join(homedir(), '.dsh', 'dsh-cost-gate', 'daily-cache.json')
+    if (!existsSync(file)) return null
+    const cache = JSON.parse(readFileSync(file, 'utf8'))
+    if (Number(cache.days) !== Number(days)) return null
+    if (cache.sessionsDir !== sessionReport.sessionsRoot()) return null
+    if (!cache.report || !cache.generatedAt) return null
+    if (Date.now() - Date.parse(cache.generatedAt) > 24 * 60 * 60 * 1000) return null
+    return { ...cache.report, cached: true, generatedAt: cache.generatedAt }
+  } catch {
+    return null
+  }
+}
 const { evaluate, phaseSummary } = phaseCore
 
 function loadPrices() {
@@ -222,7 +237,7 @@ function applyInner(ctx) {
           }
         }
         if (args.report === 'daily') {
-          const daily = sessionReport.dailyReport({ now, days: args.days ?? 1 })
+          const daily = readDailyCache(args.days ?? 1) || sessionReport.dailyReport({ now, days: args.days ?? 1 })
           return { ok: true, ...daily }
         }
         if (args.sessionId) {
