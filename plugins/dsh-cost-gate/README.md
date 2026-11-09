@@ -37,6 +37,17 @@
 | 峰时、已批、估算 ≤ 上限 | 放行 |
 | 估算 = 上限 | 放行（相等不算超） |
 
+## 峰时预算硬上限（¥10/日）
+
+2026-11-09 起，每个 `Asia/Shanghai` 自然日的峰时窗口（08:30–24:00）累计放行估算不得超过 ¥10。
+
+- 账本：`~/.dsh/dsh-cost-gate/peak-spend.json`，字段 `{ window, spentCNY, entries: [{ ts, planId, totalPeakCNY }] }`；跨日按新窗口逻辑重置。
+- `cost_gate` 新增 `status: true`：只读返回 `{ window, spentCNY, capCNY, remainingCNY, resetAt }`，不估价、不写放行。
+- `approve: true` 且准备写放行前，先调用 `peak-budget.charge(totalPeakCNY)`；命中上限时返回 `blockedByCap: true`，**不写放行**，并写交接单。
+- 交接单：`~/.dsh/dsh-cost-gate/handoffs/<window>-<ts>.json`，字段 `{ window, capCNY, spentCNY, tasks, reason, createdAt, status: 'unfinished' }`；若当前目录存在 `docs/tmp/hub`，同时复制到 `docs/tmp/hub/cost-handoffs/`。
+- `spawn_teammate` / `generate_audio` / `generate_comfyui` 的 pre-execute 在预算用完后返回 `kind: 'deny'`，reason 为 `cost-gate: peak-cap — 峰时预算 ¥10 已用完`，并提示“已保存交接单，等中枢区下个窗口重新投递”。
+- 口径：只统计 `cost_gate` 批准的估算额，**不追溯已经跑起来的任务**；达到上限后新任务不启动，已在跑的由 Lead 按交接单 interrupt。
+
 单卡自检：
 
 ```bash

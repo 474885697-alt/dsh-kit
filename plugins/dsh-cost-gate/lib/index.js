@@ -13,12 +13,13 @@
  *   - tools/pre-execute 拦截：spawn_teammate / generate_audio / generate_comfyui
  *     在任一模型峰时且没有有效放行时返回 ask（审批 never 时等于硬拦截）
  */
-import { readFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, appendFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import phaseCore from './phase.cjs'
 import taskGate from './task-gate.cjs'
+import peakBudget from './peak-budget.cjs'
 
 export const name = 'cost-gate'
 export const inject = ['tools']
@@ -58,6 +59,50 @@ function recordBlocked(tool, reason) {
   } catch (error) {
     console.error('[dsh-cost-gate] 写等待队列失败：' + String(error && error.message ? error.message : error))
   }
+}
+
+function costHome() {
+  return process.env.DSH_HOME || join(homedir(), '.dsh')
+}
+
+function handoffStamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-')
+}
+
+function writeHandoff(result, budget, reason) {
+  const window = budget.window || peakBudget.windowFor(new Date())
+  const ts = handoffStamp()
+  const name = `${window}-${ts}.json`
+  const payload = {
+    window,
+    capCNY: peakBudget.CAP_CNY,
+    spentCNY: Number(budget.spentCNY || 0),
+    tasks: (result.tasks || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      member: row.member,
+      model: row.model,
+      estPeakCNY: row.estPeakCNY,
+    })),
+    reason,
+    createdAt: new Date().toISOString(),
+    status: 'unfinished',
+  }
+  const text = JSON.stringify(payload, null, 2) + '\n'
+  const dir = join(costHome(), 'dsh-cost-gate', 'handoffs')
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, name)
+  writeFileSync(file, text, 'utf8')
+
+  let hubCopy = null
+  const hubDir = join(process.cwd(), 'docs', 'tmp', 'hub')
+  if (existsSync(hubDir)) {
+    const copyDir = join(hubDir, 'cost-handoffs')
+    mkdirSync(copyDir, { recursive: true })
+    hubCopy = join(copyDir, name)
+    writeFileSync(hubCopy, text, 'utf8')
+  }
+  return { file, hubCopy }
 }
 
 function phaseLabel(phase) {
@@ -121,22 +166,25 @@ function applyInner(ctx) {
     return
   }
 
+  console.log('[dsh-cost-gate] 峰时预算上限 ¥10/日（Asia/Shanghai）：只统计 cost_gate 批准的估算额，不追溯已运行任务；达到上限后新任务不启动，已在跑的由 Lead 按交接单 interrupt。')
+
   if (typeof ctx.tools?.register === 'function') {
     ctx.effect(() => ctx.tools.register({
       name: 'cost_gate',
-      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。',
+      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。status=true 只读返回当日峰时预算（Asia/Shanghai 自然日上限 ¥10）。',
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
           plan: { type: 'object', description: '任务计划：{ tasks: [{ id, name, model, turns, inTokens, outTokens, local, media: [{ unitCNY, count }] }] }' },
+          status: { type: 'boolean', description: '为 true 时只读返回当前峰时预算账本，不估价、不写放行' },
           now: { type: 'string', description: '可选，ISO 时间，用于测试峰谷判定' },
           approve: { type: 'boolean', description: '为 true 且计划里没有被拦截的任务（或 force=true）时，写入放行记录' },
           approve_tools: { type: 'array', items: { type: 'string' }, description: '放行哪些工具，默认 spawn_teammate/generate_audio/generate_comfyui；填 * 为全部' },
           minutes: { type: 'number', description: '放行有效期，默认 30 分钟' },
           force: { type: 'boolean', description: '计划有拦截时也强制放行（需用户明确同意）' },
         },
-        required: ['plan'],
+        required: [],
       },
       output: {
         schema: { type: 'object' },
@@ -144,19 +192,64 @@ function applyInner(ctx) {
       },
       async execute(args) {
         const now = args.now ? new Date(String(args.now)) : new Date()
+        if (args.status) {
+          const budget = peakBudget.status(now)
+          return {
+            ok: true,
+            ...budget,
+            text: `峰时预算（${budget.window}）：已用 ¥${budget.spentCNY.toFixed(2)} / ¥${budget.capCNY}，剩余 ¥${budget.remainingCNY.toFixed(2)}；${budget.resetAt} 重置。只统计 cost_gate 批准的估算额，不追溯已运行任务。`,
+          }
+        }
         const result = evaluate(prices, args.plan || {}, now)
         let approved = null
         let allowanceMinutes = null
+        let blockedByCap = false
+        let peakSpend = null
+        let handoff = null
         if (args.approve && (result.blocked === 0 || args.force)) {
-          const tools = (Array.isArray(args.approve_tools) && args.approve_tools.length ? args.approve_tools : GATED)
-          const minutes = Math.max(1, Math.min(720, Number(args.minutes) || 30))
-          allowanceMinutes = minutes
-          const expires = Date.now() + minutes * 60000
-          for (const tool of tools) allowance.set(String(tool), expires)
-          approved = tools
+          const planTasks = Array.isArray(args.plan?.tasks) ? args.plan.tasks : []
+          const planId = planTasks.map((task) => task?.id).filter(Boolean).join(',') || 'plan'
+          try {
+            peakSpend = peakBudget.charge(result.totalPeakCNY, { planId, now })
+          } catch (error) {
+            const current = peakBudget.status(now)
+            peakSpend = {
+              ok: false,
+              code: 'peak-budget-error',
+              window: current.window,
+              spentCNY: current.spentCNY,
+              remainingCNY: current.remainingCNY,
+              capCNY: peakBudget.CAP_CNY,
+              error: String(error && error.message ? error.message : error),
+            }
+          }
+          if (!peakSpend.ok) {
+            blockedByCap = true
+            handoff = writeHandoff(result, peakSpend, peakSpend.code)
+          } else {
+            const tools = (Array.isArray(args.approve_tools) && args.approve_tools.length ? args.approve_tools : GATED)
+            const minutes = Math.max(1, Math.min(720, Number(args.minutes) || 30))
+            allowanceMinutes = minutes
+            const expires = Date.now() + minutes * 60000
+            for (const tool of tools) allowance.set(String(tool), expires)
+            approved = tools
+          }
         }
-        const text = renderReport(result, approved, allowanceMinutes)
-        return { ...result, approved, allowanceMinutes, text }
+        let text = renderReport(result, approved, allowanceMinutes)
+        if (blockedByCap) {
+          const budget = peakBudget.status(now)
+          text += `\n\n峰时预算已满：本窗口已用 ¥${budget.spentCNY.toFixed(2)} / ¥${budget.capCNY}，本次估算 ¥${Number(result.totalPeakCNY).toFixed(2)} 未放行。已写交接单：${handoff?.file || '(失败)'}；等下一个窗口重新投递。`
+        }
+        return {
+          ...result,
+          approved,
+          allowanceMinutes,
+          blockedByCap,
+          peakSpend,
+          handoff: handoff?.file || null,
+          handoffHub: handoff?.hubCopy || null,
+          text,
+        }
       },
     }), 'dsh-cost-gate: cost_gate tool')
   }
@@ -181,6 +274,19 @@ function applyInner(ctx) {
           }
         }
         if (!GATED.includes(tool)) return next()
+        const budget = peakBudget.status(now)
+        if (budget.remainingCNY <= 0) {
+          const reason = 'cost-gate: peak-cap — 峰时预算 ¥10 已用完'
+          recordBlocked(tool, reason)
+          return {
+            kind: 'deny',
+            reason,
+            displayReason: {
+              en: 'cost-gate: peak budget ¥10 for this window is used up. A handoff was saved; wait for the next window to re-dispatch.',
+              zh: '已保存交接单，等中枢区下个窗口重新投递',
+            },
+          }
+        }
         const summary = phaseSummary(prices, now)
         if (summary.overall === 'valley') return next()
         const expires = allowance.get(tool) || allowance.get('*')
