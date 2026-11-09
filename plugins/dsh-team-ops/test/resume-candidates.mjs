@@ -6,7 +6,7 @@
  *  - 静态检查：无 spawn / QQ / turn 调用
  */
 import { createRequire } from 'node:module';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -72,6 +72,18 @@ console.error = origError;
 
 const route = routes.get('exact:/api/team-ops/resume-candidates');
 check('route-registered', !!route, [...routes.keys()]);
+const startupStored = JSON.parse(readFileSync(out, 'utf8'));
+check('startup-file-written', existsSync(out) && startupStored.count === 2, startupStored.count);
+check('startup-file-scannedAt', typeof startupStored.scannedAt === 'string' && startupStored.scannedAt.length > 0, startupStored.scannedAt);
+
+const healthRoute = routes.get('exact:/api/team-ops/health');
+const healthRes = { destroyed: false, writableEnded: false, writeHead(code, headers) { this.code = code; this.headers = headers; }, end(body) { this.body = body; this.writableEnded = true; } };
+await healthRoute.handler({ method: 'GET', url: '/api/team-ops/health', socket: { remoteAddress: '127.0.0.1' } }, healthRes);
+const health = JSON.parse(healthRes.body);
+check('health-feature-autoscan', health.features?.includes('resume-autoscan'), health.features);
+check('health-resume-scan', health.resumeScan?.written === true && health.resumeScan?.candidates === 2 && health.resumeScan?.error === null, health.resumeScan);
+check('health-resume-scan-time', typeof health.resumeScan?.lastScanAt === 'string' && health.resumeScan.lastScanAt.length > 0, health.resumeScan?.lastScanAt);
+
 const before = statSync(out).mtimeMs;
 const res = { destroyed: false, writableEnded: false, writeHead(code, headers) { this.code = code; this.headers = headers; }, end(body) { this.body = body; this.writableEnded = true; } };
 await route.handler({ method: 'GET', url: '/api/team-ops/resume-candidates', socket: { remoteAddress: '127.0.0.1' } }, res);
@@ -81,6 +93,33 @@ const res2 = { destroyed: false, writableEnded: false, writeHead(code) { this.co
 await route.handler({ method: 'GET', url: '/api/team-ops/resume-candidates', socket: { remoteAddress: '10.1.2.3' } }, res2);
 check('route-403', res2.code === 403, res2.code);
 check('route-no-write', statSync(out).mtimeMs === before, { before, after: statSync(out).mtimeMs });
+
+// 启动写盘失败：只记录 error，不抛、不阻断路由
+const blockedOut = join(tmp, 'out-is-dir');
+mkdirSync(blockedOut);
+process.env.DSH_TEAM_OPS_RESUME_OUT = blockedOut;
+const routes2 = new Map();
+const errors2 = [];
+const origError2 = console.error;
+console.error = (...args) => errors2.push(args.join(' '));
+const ctx2 = {
+  on() {},
+  get() { return null; },
+  effect(fn) { fn(); },
+  webServer: { register(route) { routes2.set(`${route.kind}:${route.path}`, route); return () => {}; } },
+  inject(_names, fn) { fn({ effect() {}, tools: { register(def) { return () => { void def; }; } } }); },
+};
+let threw = false;
+try { plugin.apply(ctx2); } catch { threw = true; }
+console.error = origError2;
+process.env.DSH_TEAM_OPS_RESUME_OUT = out;
+check('startup-failure-silent', !threw, threw);
+check('startup-failure-logged', errors2.some((line) => line.includes('resume autoscan failed')), errors2);
+const healthRoute2 = routes2.get('exact:/api/team-ops/health');
+const healthRes2 = { destroyed: false, writableEnded: false, writeHead(code, headers) { this.code = code; this.headers = headers; }, end(body) { this.body = body; this.writableEnded = true; } };
+await healthRoute2.handler({ method: 'GET', url: '/api/team-ops/health', socket: { remoteAddress: '127.0.0.1' } }, healthRes2);
+const health2 = JSON.parse(healthRes2.body);
+check('startup-failure-recorded', health2.resumeScan?.written === false && typeof health2.resumeScan?.error === 'string' && health2.resumeScan.error.length > 0, health2.resumeScan);
 
 // 静态：无进程/QQ/turn 调用（扫描本模块与路由片段）
 const libSource = readFileSync(join(import.meta.dirname, '..', 'lib', 'resume-candidates.cjs'), 'utf8');

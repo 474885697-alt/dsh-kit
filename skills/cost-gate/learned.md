@@ -191,3 +191,43 @@
 - 做法：本轮任务的有效操作链：edit → edit → edit → pwsh → plugin_manager → plugin_manager → pwsh → send_message
 - 依据：关键调用参数：plugin_manager: {"action":"set_bundle","enabled":true,"target":"dsh-auto-approve"} ; pwsh: {"command":"try { Invoke-RestMethod 'http://127.0.0.1:53207/api/dsh-auto-approve/status' -TimeoutSec 5 | ConvertTo-Json -Compress } catch {  ; send_message: {"message":"已更新并重载（startedAt 15:57:43）：现在对 allowlist 工具，auto-review 的硬 deny 也会被改写为放行（role-guard/cost-gate 的拒绝仍保留）。\n请再跑同一测试：\n1) `create_ski
 - 会话：b4267385-cb53-4010-b071-e3c4dff3fd40
+
+## 2026-11-09T08:48:25.173Z [auto] <!-- h:63479086c33c -->
+- 做法：本轮任务的有效操作链：compress → read → pwsh → pwsh → pwsh → team_task_get → team_task_update → pwsh
+- 依据：关键调用参数：team_task_get: {"task_id":"task-17"} ; team_task_update: {"action":"claim","expected_revision":1,"task_id":"task-17"} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; git merge main 2>&1 | Select-Object -Last 5; git log --onelin
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T08:50:01.824Z [auto] <!-- h:9a1f421c836a -->
+- 做法：本轮任务的有效操作链：read → read → pwsh → read → read → pwsh → pwsh → team_task_update
+- 依据：关键调用参数：pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; npm.cmd run docs:check 2>&1 | Select-Object -Last 2; git stat ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; git add 'docs/中枢' 'docs/协作/中枢区工作流.md'; git -c user.name='hub' ; team_task_update: {"action":"complete","expected_revision":2,"task_id":"task-17"}
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T08:50:23.945Z [auto] <!-- h:4eb61bdcc8f9 -->
+- 做法：本轮任务的有效操作链：send_message → write → team_task_create → write → pwsh → pwsh → send_message
+- 依据：关键调用参数：pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\default-workspace'; node --check plugins/dsh-cost-gate/lib/peak-budget.cjs; node ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release'; node --check tools/team-ops-plugin/lib/index.js; node too ; send_message: {"message":"【task-17 验收 pass；task-18 新单：登记省钱计划】\n1) task-17 文档验收：pass。`750741d`（先 merge main→`501d5ae`），docs:check 52 headings/105 tables/0
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T09:11:11.774Z [auto] <!-- h:9eb5a611bf6f -->
+- 做法：本轮任务的有效操作链：edit → search_context → grep → search_context → pwsh → pwsh → read → pwsh
+- 依据：关键调用参数：pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness'; Get-ChildItem -Path '_worktrees\\_hub\\docs','default-workspace\\docs' -Recurse ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","limit":40,"offset":200} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; Select-String -Path (Get-ChildItem docs -Recurse -Filter *.md
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T09:12:56.486Z [auto] <!-- h:97f1a5cb9e6d -->
+- 做法：本轮任务的有效操作链：pwsh → decompress → pwsh → pwsh → pwsh → read → pwsh → send_message
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\决策\\2026-11-09-重启窗口.md"} ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; Select-String -Path 'docs\\协作\\交接-2026-11-09-重启.md' -Pattern  ; send_message: {"message":"P0 收到，已在做 #1–#3。**#4 需要你补一个信息**：D1–D9 的选项原文/标题我这边只剩结论（D1 全做、D2A…D9 保留 token），具体选项描述已不在上下文。请把 D1–D9 的标题/选项发我（或确认「只按结论记、不写选项细节」）。\
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T09:13:24.210Z [auto] <!-- h:e8191a9a6fda -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → read → edit → send_message → pwsh
+- 依据：关键调用参数：edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\验收\\README.md","new_string":"| [ACC-20261109-56](ACC-2 ; send_message: {"message":"【D1–D9 原文补给你，按「结论 + 选项标题」记】\nD1 省钱计划（6 节）：A 全做（推荐）/ B 只做 1–3 节 / C 只做 1+3 / D 暂缓\nD2 cost-gate 四边界：A 修 3 项（缺省 subject 直接拒、writeH ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; Select-String -Path 'docs\\中枢\\需求\\收件箱.md' -Pattern '^\\| 202
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T09:15:16.748Z [auto] <!-- h:ef1cee0ab616 -->
+- 做法：本轮任务的有效操作链：cost_gate → write → team_task_create → team_task_create → team_task_create → team_task_create → edit → edit
+- 依据：关键调用参数：team_task_create: {"description":"approvedByUser: true\napprovalRef: apv-self-team-20261109\nowner：hub（自建自执行；不另派）\n预算上限 ¥0.30；估算 ¥0.20（峰时；只写文档，不写代码）\n基线：main@ ; edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","new_string":"| COST-HANDOFF-2026-11-09 | 峰 ; edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","new_string":"| task-18 | 中枢区-省钱计划登记为待做项 |
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T09:15:34.054Z [auto] <!-- h:3ff190a05bc6 -->
+- 做法：本轮任务的有效操作链：compress → send_message → send_message
+- 依据：关键调用参数：compress: {"content":"m00874–m00884 ACC-52/53 收尾\n- task-12（`57b01eb`）与 task-14（`2ba5f4e`）qa 均 pass；`ACC-20261109-52`/`53` 已落，验收 README、hub README、收件箱 ; send_message: {"message":"【转入收尾模式：停止建卡，改为新组清单】\n用户要求「干完在干的事之后收尾，整理交接文档给新组」。所以：\n1) 不要再建 D2/D5/D6/D1 的卡，也不要唤醒任何人；已经建了的话告诉我 id，先不动。\n2) 把 D1–D9 里尚未执行的项整理成 ` ; send_message: {"message":"【收尾模式】task-16 验收是当前唯一在跑的验证；验完请直接给 5 行结论（pass/fail + 证据路径），不要接新卡。通过后我会合并 `module/release` 到 main，并做最终交接。若 fail，立即停并报我。","target":
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff

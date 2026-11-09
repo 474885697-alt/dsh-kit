@@ -18,7 +18,8 @@
  * 不自动派发任务、不改任务板；openid / AppID / 密钥不写进插件，走环境变量。
  */
 
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { statSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -26,10 +27,12 @@ import qq from './qq.cjs';
 import status from './status.cjs';
 import commands from './commands.cjs';
 import resumeCandidates from './resume-candidates.cjs';
+import resumeRunner from './resume-runner.cjs';
 import approvals from './approvals.cjs';
 import approvalQueue from './approval-queue.cjs';
 import roles from './roles.cjs';
 import leadGate from './lead-gate.cjs';
+import roleGuard from './role-guard.cjs';
 import { createMirror } from './mirror.cjs';
 
 export const name = 'dsh-team-ops';
@@ -37,8 +40,10 @@ export const inject = ['webServer'];
 
 const PREFIX = '/api/team-ops';
 const VERSION = '0.3.4';
-// 供重启后确认“新进程是否真的加载了 A-lite 路由”；旧进程的 health 里没有该字段。
-const FEATURES = ['resume-candidates'];
+// 供重启后确认“新进程是否真的加载了 A-lite 路由/启动扫描”；旧进程的 health 里没有这些标记。
+const FEATURES = ['resume-candidates', 'resume-autoscan'];
+// 工单标题规范（task-16）：<成员区>-<简短要求>，Lead 也不豁免。
+const TASK_SUBJECT_RE = /^(主控区|中枢区|机制区|美术区|文案区|工具区|测试区|缺陷区|验收区|联机区)-.{2,40}$/;
 const HERE = dirname(fileURLToPath(import.meta.url));
 void HERE;
 
@@ -122,6 +127,98 @@ function callingSessionId(exec) {
   return String(exec?.agent?.session?.id || exec?.agent?.sessionId || exec?.session?.id || '');
 }
 
+function sessionCwd(ctx, sessionId) {
+  try {
+    const sessions = ctx?.sessions || (typeof ctx?.get === 'function' ? ctx.get('sessions') : null);
+    if (!sessions || !sessionId) return '';
+    const session = typeof sessions.get === 'function'
+      ? sessions.get(sessionId)
+      : (typeof sessions.list === 'function'
+        ? (sessions.list() || []).find((item) => (item.id || item.header?.id) === sessionId)
+        : null);
+    const cwd = session?.header?.cwd || session?.cwd;
+    return typeof cwd === 'string' && cwd.trim() ? cwd.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+// 默认走 guard-policy 的固定路径；环境变量仅供副本 profile 自测/运维覆盖。
+function roleSessionsFile() {
+  const value = String(process.env.DSH_TEAM_OPS_ROLE_SESSIONS || '').trim();
+  return value ? resolve(value) : undefined;
+}
+
+function roleAuditFile() {
+  const value = String(process.env.DSH_TEAM_OPS_ROLE_AUDIT || '').trim();
+  return value ? resolve(value) : undefined;
+}
+
+function resolveCallerRole(sessionId) {
+  if (leadGate.isLead(sessionId).allowed) return { role: 'lead', mapped: true, source: 'lead-gate' };
+  const resolved = roleGuard.resolveRole({ sessionId }, { roleSessionsFile: roleSessionsFile() });
+  // Lead 只认 lead-gate；env/映射文件里自称 lead 的会话降级为 unknown，不能绕过 Lead 门。
+  if (resolved.role === 'lead') return { role: 'unknown', mapped: false, source: 'lead-downgraded' };
+  return resolved;
+}
+
+function roleGuardOptions(ctx, sessionId) {
+  return {
+    projectRoot: sessionCwd(ctx, sessionId) || process.cwd(),
+    auditFile: roleAuditFile(),
+    roleSessionsFile: roleSessionsFile(),
+  };
+}
+
+function roleGuardHealth() {
+  const file = roleAuditFile() || resolve(process.cwd(), roleGuard.POLICY.auditFile);
+  let lastAudit = null;
+  try {
+    lastAudit = statSync(file).mtime.toISOString();
+  } catch {
+    lastAudit = null;
+  }
+  return {
+    enabled: true,
+    memberRoles: 'disabled',
+    roleCount: roles.ROLE_IDS.length,
+    enforceWriteScopes: roleGuard.POLICY.enforceWriteScopes,
+    lastAudit,
+  };
+}
+
+// A-lite：启动只读扫描一次并原子落盘；失败只记录，不阻断插件启动。
+let resumeScanState = { lastScanAt: null, candidates: 0, written: false, error: null };
+let resumeRunHandle = null;
+
+// A2：默认关；只有 team-resume.json 显式 enabled=true 且 allowlist 非空才可能 spawn。
+function resumeRunnerHealth() {
+  return resumeRunHandle ? resumeRunHandle.health() : resumeRunner.defaultHealth();
+}
+
+function runResumeAutoscan() {
+  try {
+    const result = resumeCandidates.scan();
+    const written = resumeCandidates.writeResult(result);
+    resumeScanState = {
+      lastScanAt: result.scannedAt || result.generatedAt || new Date().toISOString(),
+      candidates: result.count,
+      written: written.written === true,
+      error: null,
+    };
+    return result;
+  } catch (error) {
+    resumeScanState = {
+      lastScanAt: new Date().toISOString(),
+      candidates: 0,
+      written: false,
+      error: String(error?.message || error),
+    };
+    console.error(`[team-ops] resume autoscan failed: ${resumeScanState.error}`);
+    return null;
+  }
+}
+
 export function apply(ctx) {
   const config = qq.configStatus();
   const mirror = createMirror({ getImInfo: createImLookup(ctx) });
@@ -137,6 +234,23 @@ export function apply(ctx) {
     ctx.on('dsh-im/session-unbind', (info) => mirror.unbind(info?.sessionId));
   } catch { /* 宿主没有 dsh-im 时静默 */ }
 
+  console.log('[team-ops] role-guard：成员级未启用（宿主未注入稳定角色 id），仅启用 Lead 门');
+  const scanResult = runResumeAutoscan();
+  try {
+    const runnerConfig = resumeRunner.loadConfig();
+    resumeRunHandle = resumeRunner.createRunner({ config: runnerConfig });
+    console.log(`[team-ops] resume-runner：enabled=${runnerConfig.enabled}, dryRun=${runnerConfig.dryRun}, allowlist=${runnerConfig.allowlist.length}`);
+    // 启动后台执行，不阻塞 apply；默认安全档下只会扫描并写 skipped 记录。
+    // 用 setImmediate 把可能较大的会话索引扫描挪出启动同步路径。
+    setImmediate(() => {
+      void resumeRunHandle.run({ scanResult }).catch((error) => {
+        console.error(`[team-ops] resume-runner failed: ${String(error?.message || error)}`);
+      });
+    });
+  } catch (error) {
+    console.error(`[team-ops] resume-runner init failed: ${String(error?.message || error)}`);
+  }
+
   const routes = [
     {
       kind: 'exact',
@@ -151,6 +265,9 @@ export function apply(ctx) {
           time: new Date().toISOString(),
           qq: config,
           mirror: mirror.status(),
+          roleGuard: roleGuardHealth(),
+          resumeScan: { ...resumeScanState },
+          resumeRunner: resumeRunnerHealth(),
         };
         return sendJson(res, config.ready ? 200 : 503, payload);
       },
@@ -284,9 +401,38 @@ export function apply(ctx) {
 
   // C03：工单审批门。只拦截 team_task_create；description 必须同时含
   // `approvedByUser: true` 与有效 `approvalRef`，否则拒绝并写审计日志。
+  // WO-1b：先跑 role-guard（工具 deny + 写域），再进入原有审批门。
   ctx.on('tools/pre-execute', async (exec, next) => {
     try {
+      const roleSessionId = callingSessionId(exec);
+      const role = resolveCallerRole(roleSessionId);
+      const roleDecision = roleGuard.checkAndAudit({
+        role: role.role,
+        mapped: role.mapped,
+        tool: String(exec?.name || ''),
+        arguments: exec?.arguments || {},
+        sessionId: roleSessionId,
+      }, roleGuardOptions(ctx, roleSessionId));
+      if (roleDecision.kind === 'deny') {
+        return {
+          kind: 'deny',
+          reason: `role-guard: ${roleDecision.reason}`,
+          displayReason: roleDecision.displayReason || '该操作仅限 Lead',
+        };
+      }
       if (exec?.name !== 'team_task_create') return next();
+      // 缺省 subject 的旧调用保持原审批门行为；显式空串/错格式一律拒绝。
+      const subjectArg = exec?.arguments?.subject;
+      if (subjectArg !== undefined) {
+        const subject = String(subjectArg);
+        if (!TASK_SUBJECT_RE.test(subject)) {
+          return {
+            kind: 'deny',
+            reason: `team-ops: invalid-task-subject — ${JSON.stringify(subject)}`,
+            displayReason: '工单标题必须是“成员区-简短要求”，例如“文案区-文案的优化整理”',
+          };
+        }
+      }
       const description = exec?.arguments?.description;
       const sessionId = callingSessionId(exec);
       const verdict = approvals.gate(description);
@@ -317,7 +463,7 @@ export function apply(ctx) {
         displayReason: `工单未获用户批准（${verdict.code}）`,
       };
     } catch (error) {
-      return { kind: 'deny', reason: `approval-gate internal error: ${String(error?.message || error)}` };
+      return { kind: 'deny', reason: `team-ops pre-execute internal error: ${String(error?.message || error)}` };
     }
   });
 

@@ -77,3 +77,18 @@
 - 做法：本轮任务的有效操作链：list_agents → pwsh → send_message → wait_agent → list_agents → send_message → wait_agent → send_message
 - 依据：关键调用参数：send_message: {"message":"【task-2 验收结论：pass】1) 11/11 checks true，5xx=0（状态集 200/400/403/404/409），21/21 双端 online=true，退出码 0。2) 对象 _online@1261b0a 只读；窗口 14: ; wait_agent: {"timeout_ms":300000} ; send_message: {"message":"【qa | task-2 公网 soak 复核：pass｜证据路径】11/11 checks true，无 5xx，21/21 双端 online=true；窗口 14:46:42–15:07:43（1261s），房码 FRZP，health 200 ac
 - 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T08:43:34.254Z [auto] <!-- h:6a4b1a9beb22 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → send_message → pwsh → compress → send_message → send_message
+- 依据：关键调用参数：compress: {"content":"m00971–m00987 task-15 交付记录与用户决策呈现规则\n- tools 报 task-15（WO-3/A2 受控续跑）完成：commit `63ab687`（3 files +976/−1：`tools/team-ops-plugin/l ; send_message: {"message":"【task-15 已交付，请接验收】\ntools 交付 `63ab687`（`module/release`），仅 3 文件：`lib/resume-runner.cjs`、`lib/index.js`、`test/resume-runner.mjs`。 ; send_message: {"message":"task-15 的 qa 已唤醒，等其结论后落 ACC-55；你不用催。基线按你记的：scoped diff 3 文件，main 前进到 `a2bf70a` 是 dsh-auto-approve，与本单无关。","target":"hub"}
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T08:45:36.677Z [auto] <!-- h:fc3f062fd97c -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → pwsh → pwsh → write → pwsh → pwsh
+- 依据：关键调用参数：write: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_qa\\docs\\tmp\\qa\\task15-runner-probe.cjs","content":"// qa 独立探针：不依赖 ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_qa'; node docs/tmp/qa/task15-runner-probe.cjs > docs/tmp/qa/task15- ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release'; node tools/team-ops-plugin/test/resume-runner.mjs > 'C:\\
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T08:47:29.134Z [auto] <!-- h:f7bcc9855af5 -->
+- 做法：本轮任务的有效操作链：write → write → team_task_create → team_task_create → pwsh → list_agents → send_message → send_message
+- 依据：关键调用参数：list_agents: {} ; send_message: {"target":"lead","message":"【task-15 独立验收：pass（带边界）】\n1) 对象 `_release@63ab687`（module/release，父 db1f220，16:41:13）：恰 3 文件（index.js M、resume-r ; send_message: {"target":"hub","message":"【task-15 验收结论：pass（带边界）】对象 `_release@63ab687`（module/release），qa 独立复核，未 claim（板上已 completed rev3）。\n范围：恰好 3 文件（li
+- 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf

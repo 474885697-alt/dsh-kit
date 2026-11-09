@@ -260,3 +260,23 @@
 - 做法：本轮任务的有效操作链：pwsh → pwsh → list_agents → pwsh → pwsh → read → read → send_message
 - 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":55,"off ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\role-guard.cjs","limit":20,"off ; send_message: {"target":"hub","message":"【task-14 完成】commit `2ba5f4e`（module/mechanics；3 files +49/−3，未 merge、未改 data、只提交写域 3 文件）。\n1) `src/app/part-08.js
 - 会话：9ab55c58-781b-4d04-8f9a-019c6d6269bf
+
+## 2026-11-09T08:34:35.386Z [auto] <!-- h:ad3bcd2e94b6 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → pwsh → read → read → read → read → read
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\index.js","limit":75,"offset":2 ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\index.js","limit":90,"offset":2 ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\lib\\index.js","limit":95,"offset":3
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T08:35:09.936Z [auto] <!-- h:74821d6e171b -->
+- 做法：本轮任务的有效操作链：read → read
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\test\\resume-candidates.mjs","limit" ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release\\tools\\team-ops-plugin\\test\\resume-candidates.mjs","limit"
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T08:41:12.366Z [auto] <!-- h:10789f6e261f -->
+- 做法：本轮任务的有效操作链：edit → edit → pwsh → edit → pwsh → pwsh → pwsh → pwsh
+- 依据：关键调用参数：pwsh: {"command":"$ErrorActionPreference='Stop'\n$dshHome = Join-Path $env:TEMP 'dsh-home-wo3'; $fixture = Join-Path $env:TEMP 'dsh-wo3-fixture'\n ; pwsh: {"command":"$locks=Join-Path $env:TEMP 'dsh-home-wo3\\team-resume-locks'; Get-ChildItem $locks -Recurse -Force | Select-Object FullName,PSIs ; pwsh: {"command":"cd 'C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_release'; git status --porcelain; Write-Output '== diff stat =='; g
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a
+
+## 2026-11-09T08:41:43.037Z [auto] <!-- h:83cc5b7cd55c -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → team_task_update → pwsh → list_agents → send_message → send_message → send_message
+- 依据：关键调用参数：send_message: {"target":"hub","message":"task-15（WO-3/A2）完成，commit `63ab687`（3 files +976/−1，仅 `lib/resume-runner.cjs`、`lib/index.js`、`test/resume-runner. ; send_message: {"target":"lead","message":"task-15（WO-3/A2）已 complete（rev3），commit `63ab687`，仅 3 个写域文件；未安装/未重启/未 merge/未发 QQ。\n验收：node --check 0；runner 53/ ; send_message: {"target":"qa","message":"task-15（WO-3/A2）已提交 `63ab687`（module/release，3 files），可独立复跑。重点：`node tools/team-ops-plugin/test/resume-runner.mjs`
+- 会话：7442d3d7-9fe5-4eae-ae4e-7651c47f712a

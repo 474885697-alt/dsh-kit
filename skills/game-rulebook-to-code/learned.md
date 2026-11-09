@@ -136,3 +136,13 @@
 - 做法：本轮任务的有效操作链：edit → pwsh → send_message → send_message → pwsh
 - 依据：关键调用参数：send_message: {"message":"C14/task-207 判 conditional，先不收口：请让 tools 重开/新开返工卡（owner tools，写域仅 `plugins/dsh-auto-skill`），修两点：\n1) 副本 profile 未成功加载 0.3.0：matc ; send_message: {"message":"C14 返工（task-207 conditional）：先不要动 live。请在 `_release` 修 `plugins/dsh-auto-skill` 的副本 profile 启动问题——QA 实测 match 200 但 config 无 `te ; pwsh: {"command":"git add docs/中枢/README.md docs/中枢/验收/README.md docs/中枢/验收/ACC-20261109-42.md docs/中枢/验收/ACC-20261109-43.md; git commit -m \"docs
 - 会话：session-730220af-1e0d-4707-aa7d-b61e237acfcd
+
+## 2026-11-09T08:52:04.704Z [auto] <!-- h:4137226d13be -->
+- 做法：本轮任务的有效操作链：compress → compress
+- 依据：关键调用参数：compress: {"content":"m01038–m01101 task-17 命名规范与成本交接落盘\n- Lead（m01037）新单 task-17「中枢区-成本交接与工单命名规范」owner hub rev1，预算上限 ¥0.30：① 命名规范 `<成员区>-<简短要求>` 写进 ` ; compress: {"content":"m00667–m00675 task-16 派工与工单\n- Lead 消息（m00668）「task-16 开工：峰时 ¥10 上限 + 工单命名校验」：claim rev1；`git merge main`；实现 `plugins/dsh-cost-g
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T08:52:17.245Z [auto] <!-- h:f2656be939b5 -->
+- 做法：本轮任务的有效操作链：pwsh → pwsh → team_task_get → team_task_update → list_agents → send_message → send_message → send_message
+- 依据：关键调用参数：send_message: {"target":"hub","message":"【task-16 完成】峰时 ¥10 上限 + 工单命名校验；task-16 已 complete（rev3）。未安装/重启/merge/发 QQ。\n- cost-gate：`default-workspace@9a797f ; send_message: {"target":"lead","message":"【task-16 完成】commit：cost-gate `9a797f1`（default-workspace main，4 files +378/−11）、team-ops `94d1cb3`（module/releas ; send_message: {"target":"qa","message":"task-16 已实现并提交，请独立复跑：cost-gate `9a797f1`（default-workspace main），team-ops `94d1cb3`（_release module/release，前置 mer
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff

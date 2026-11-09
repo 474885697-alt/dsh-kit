@@ -9,7 +9,7 @@
  *   - docs/tmp/team-ops-handoff.json（可选交接文件：items 数组）
  *
  * 不 spawn 进程、不跑 turn、不发 QQ、不广播；session 映射缺失时字段写 null 并注明来源不足。
- * 输出（仅 write=true 时）：docs/tmp/team-ops-resume-candidates.json（带文件锁）。
+ * A-lite 启动扫描只写 docs/tmp/hub/resume-candidates.json（带文件锁，原子替换），不自动续跑。
  */
 
 const fs = require('node:fs');
@@ -28,7 +28,7 @@ function handoffPath() {
   return process.env.DSH_TEAM_OPS_HANDOFF || path.join(ROOT, 'docs', 'tmp', 'team-ops-handoff.json');
 }
 function outPath() {
-  return process.env.DSH_TEAM_OPS_RESUME_OUT || path.join(ROOT, 'docs', 'tmp', 'team-ops-resume-candidates.json');
+  return process.env.DSH_TEAM_OPS_RESUME_OUT || path.join(ROOT, 'docs', 'tmp', 'hub', 'resume-candidates.json');
 }
 
 function readJson(file) {
@@ -105,9 +105,11 @@ function scan(input = {}) {
     candidates.push(candidate);
   }
 
+  const scannedAt = new Date().toISOString();
   return {
     ok: true,
-    generatedAt: new Date().toISOString(),
+    scannedAt,
+    generatedAt: scannedAt,
     count: candidates.length,
     candidates,
     sources,

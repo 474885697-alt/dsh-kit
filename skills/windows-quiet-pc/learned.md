@@ -57,3 +57,18 @@
 - 做法：本轮任务的有效操作链：wait_agent → team_task_get → pwsh → pwsh → edit → edit → pwsh → send_message
 - 依据：关键调用参数：edit: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","new_string":"**最新收口（2026-11-09 11:05）**：ta ; pwsh: {"command":"$ErrorActionPreference='Continue'; npm.cmd run docs:check; python docs/tmp/hub/check-links.py; git diff --check; git add 'docs/中 ; send_message: {"message":"task-160 完成：旧入口仅 Tailscale Funnel `https://desktop-l0u356t.taile732d8.ts.net/`→本机 3000；已 `funnel reset`（exit 0）。\nhub 独立复验：`funn
 - 会话：d868b1cb-30c8-403b-a5e3-9fde49dcd162
+
+## 2026-11-09T08:15:30.888Z [auto] <!-- h:5cc56250b6cb -->
+- 做法：本轮任务的有效操作链：decompress → pwsh → pwsh → pwsh → pwsh
+- 依据：关键调用参数：pwsh: {"command":"$repo='C:\\Users\\03\\Documents\\dsh-kit-sync'; \"helper=$(git -C $repo config --local --get credential.helper)\"; cmdkey /list: ; pwsh: {"command":"$env:GIT_TERMINAL_PROMPT='0'; \"temp=$(Test-Path 'C:\\Users\\03\\Documents\\.b12-restore.txt')\"; $r=git ls-remote https://githu ; pwsh: {"command":"$f='C:\\Users\\03\\Documents\\.b12-restore.txt'; if(Test-Path $f){ Remove-Item $f -Force }; \"temp_exists=$(Test-Path $f)\"; Get
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T08:18:42.129Z [auto] <!-- h:3161b1eb8826 -->
+- 做法：本轮任务的有效操作链：pwsh → team_task_list → pwsh → read → read → compress
+- 依据：关键调用参数：read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\README.md","limit":110} ; read: {"file_path":"C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub\\docs\\中枢\\需求\\收件箱.md","limit":45} ; compress: {"content":"m00845–m00924 图片 3 与 GitHub 上传启动\n\n- 用户 m00842「请分析这张图片。」图 3：1050×1100 Q 版彩稿，灰发猫耳、黄蝴蝶结蓝宝石、单眼 wink＋金色星瞳、红黑外套＋猫脸 T 恤＋猫爪鞋、右手托蓝色发光宝珠
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff
+
+## 2026-11-09T08:27:35.484Z [auto] <!-- h:4990932f4c90 -->
+- 做法：本轮任务的有效操作链：pwsh → ask_user_question → pwsh → edit → compress → pwsh → ask_user_question → ask_user_question
+- 依据：关键调用参数：pwsh: {"command":"$h='C:\\Users\\03\\Documents\\deepseek-harness\\_worktrees\\_hub'; git -C $h add 'docs/中枢/决策/2026-11-09-重启窗口.md'; git -C $h -c u ; ask_user_question: {"questions":[{"header":"重启窗口","id":"restart_window_2","options":[{"description":"先 dry-run/备份/哈希比对，再移除 qqbot；然后重启加载全部新代码并验 A-Lite-401。失败可回滚 ; ask_user_question: {"questions":[{"header":"重启窗口","id":"restart_window_3","options":[{"description":"移除 qqbot + 重启加载全部新代码 + 验 A-Lite-401；有启动风险，可回滚。","label":"A
+- 会话：session-98a1b988-9f75-4862-a6d3-481e1b14acff

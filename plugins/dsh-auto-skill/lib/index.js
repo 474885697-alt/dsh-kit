@@ -39,6 +39,10 @@ const DEFAULTS = {
   learnInjectChars: 1800,
   learnMaxEntries: 60,
   learnMaxBytes: 48 * 1024,
+  // 团队/子会话策略：inherit（默认，保持旧行为）| off | allow | exclude
+  teamPolicy: 'inherit',
+  teamAllow: [],
+  teamExclude: [],
 };
 
 /** 太泛、匹配上了也不说明问题的中文二元组。 */
@@ -78,6 +82,13 @@ function clampInt(value, min, max, fallback) {
 
 function normalizeConfig(input) {
   const raw = input && typeof input === 'object' ? input : {};
+  const list = (value) => (Array.isArray(value)
+    ? value
+    : String(value == null ? '' : value).split(/[,\s]+/))
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+  const policyRaw = String(raw.teamPolicy || process.env.DSH_AUTO_SKILL_TEAM_POLICY || 'inherit').toLowerCase();
+  const teamPolicy = ['inherit', 'off', 'allow', 'exclude'].includes(policyRaw) ? policyRaw : 'inherit';
   return {
     enabled: raw.enabled !== false,
     maxSkills: clampInt(raw.maxSkills, 1, 3, DEFAULTS.maxSkills),
@@ -91,7 +102,27 @@ function normalizeConfig(input) {
     learnInjectChars: clampInt(raw.learnInjectChars, 0, 12000, DEFAULTS.learnInjectChars),
     learnMaxEntries: clampInt(raw.learnMaxEntries, 5, 500, DEFAULTS.learnMaxEntries),
     learnMaxBytes: clampInt(raw.learnMaxBytes, 4096, 512 * 1024, DEFAULTS.learnMaxBytes),
+    teamPolicy,
+    teamAllow: list(raw.teamAllow == null ? process.env.DSH_AUTO_SKILL_TEAM_ALLOW : raw.teamAllow),
+    teamExclude: list(raw.teamExclude == null ? process.env.DSH_AUTO_SKILL_TEAM_EXCLUDE : raw.teamExclude),
   };
+}
+
+/** 团队/子会话：subagent origin、带父会话或非零委派深度。 */
+function isTeamAgent(agent) {
+  const header = (agent && agent.session && agent.session.header) || {};
+  if (header.origin === 'subagent') return true;
+  if (header.parentSession) return true;
+  return Number(header.delegationDepth || 0) > 0;
+}
+
+/** 团队会话下是否允许自动注入该技能；普通会话不调用。 */
+function teamSkillAllowed(name, config) {
+  const skill = String(name || '');
+  if (config.teamPolicy === 'off') return false;
+  if (config.teamExclude.includes(skill)) return false;
+  if (config.teamPolicy === 'allow') return config.teamAllow.includes(skill);
+  return true;
 }
 
 /** 抽英文词 + 中文二元组，作为匹配用的关键词集合。 */
@@ -480,6 +511,10 @@ export function apply(ctx, configInput) {
 
       const sessionKey = String((agent.session && agent.session.id) || 'unknown');
       const seen = applied.get(sessionKey) || new Set();
+      const teamSession = isTeamAgent(agent);
+      if (teamSession && config.teamPolicy !== 'inherit') {
+        log({ event: 'team-policy', session: sessionKey, policy: config.teamPolicy, allow: config.teamAllow, exclude: config.teamExclude });
+      }
 
       const cwd = await ctx.workingDirectory.ensure(agent, payload.signal);
       const lookup = { cwd, signal: payload.signal, scope: agent };
@@ -493,6 +528,7 @@ export function apply(ctx, configInput) {
       for (const entry of ranked) {
         if (picked.length >= config.maxSkills) break;
         if (seen.has(entry.skill.name)) continue;
+        if (teamSession && !teamSkillAllowed(entry.skill.name, config)) continue;
         // 摘要里没有正文，必须再 get 一次拿到完整内容。
         const full = await ctx.skills.get(entry.skill.name, lookup);
         if (!full || !full.content) continue;
@@ -750,4 +786,4 @@ export function apply(ctx, configInput) {
 }
 
 /** Test-only surface (kept ASCII so the file stays valid UTF-8). */
-export const __internals = { keywordsOf, buildDf, scoreSkill, latestUserText, renderAutoSkillMessage, renderSkillContent, normalizeConfig, appendLearning, learnedDigest, parseLearned, findSkillDir, describeToolCall, skillsRoot, redactSecrets };
+export const __internals = { keywordsOf, buildDf, scoreSkill, latestUserText, renderAutoSkillMessage, renderSkillContent, normalizeConfig, isTeamAgent, teamSkillAllowed, appendLearning, learnedDigest, parseLearned, findSkillDir, describeToolCall, skillsRoot, redactSecrets };
