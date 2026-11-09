@@ -103,6 +103,21 @@ for (const [name, subject] of cases) {
   )
 }
 
+// 缺省 subject：不再沿用旧审批门，直接拒绝（不自动补名）
+let missingNext = false
+const missing = await preExecute(
+  { name: 'team_task_create', arguments: { description: `approvedByUser: true\napprovalRef: ${apvId}\n工具区-缺省标题` }, agent: { session: { id: 'lead-naming' } } },
+  () => { missingNext = true; return { kind: 'allow' } },
+)
+check(
+  'deny-missing-subject',
+  missingNext === false
+    && missing?.kind === 'deny'
+    && /invalid-task-subject/.test(String(missing.reason))
+    && missing.displayReason === '工单标题必须是“成员区-简短要求”，例如“文案区-文案的优化整理”',
+  missing,
+)
+
 // 未知前缀也覆盖一个非 Lead 会话，确认不是靠角色门误伤
 const hubDeny = await callCreate('财务区-预算表', 'approvedByUser: true', 'hub-naming')
 check('deny-unknown-prefix-hub', hubDeny.nextCalled === false && /invalid-task-subject/.test(String(hubDeny.result?.reason)), hubDeny)

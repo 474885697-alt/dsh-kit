@@ -20,6 +20,7 @@ import { homedir } from 'node:os'
 import phaseCore from './phase.cjs'
 import taskGate from './task-gate.cjs'
 import peakBudget from './peak-budget.cjs'
+import sessionReport from './session-report.cjs'
 
 export const name = 'cost-gate'
 export const inject = ['tools']
@@ -89,20 +90,36 @@ function writeHandoff(result, budget, reason) {
     status: 'unfinished',
   }
   const text = JSON.stringify(payload, null, 2) + '\n'
+  const out = { file: null, hubCopy: null, error: null, hubError: null }
   const dir = join(costHome(), 'dsh-cost-gate', 'handoffs')
-  mkdirSync(dir, { recursive: true })
   const file = join(dir, name)
-  writeFileSync(file, text, 'utf8')
 
-  let hubCopy = null
-  const hubDir = join(process.cwd(), 'docs', 'tmp', 'hub')
-  if (existsSync(hubDir)) {
-    const copyDir = join(hubDir, 'cost-handoffs')
-    mkdirSync(copyDir, { recursive: true })
-    hubCopy = join(copyDir, name)
-    writeFileSync(hubCopy, text, 'utf8')
+  // 主交接单写失败不能阻断 deny；记录错误并告警，调用方仍可继续。
+  try {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(file, text, 'utf8')
+    out.file = file
+  } catch (error) {
+    out.error = String(error && error.message ? error.message : error)
+    console.warn(`[dsh-cost-gate] handoff write failed: ${out.error}`)
+    return out
   }
-  return { file, hubCopy }
+
+  // hub 副本是尽力而为：目录不存在或复制失败都不影响主交接单。
+  try {
+    const hubDir = join(process.cwd(), 'docs', 'tmp', 'hub')
+    if (existsSync(hubDir)) {
+      const copyDir = join(hubDir, 'cost-handoffs')
+      mkdirSync(copyDir, { recursive: true })
+      const hubCopy = join(copyDir, name)
+      writeFileSync(hubCopy, text, 'utf8')
+      out.hubCopy = hubCopy
+    }
+  } catch (error) {
+    out.hubError = String(error && error.message ? error.message : error)
+    console.warn(`[dsh-cost-gate] handoff hub copy failed: ${out.hubError}`)
+  }
+  return out
 }
 
 function phaseLabel(phase) {
@@ -171,13 +188,16 @@ function applyInner(ctx) {
   if (typeof ctx.tools?.register === 'function') {
     ctx.effect(() => ctx.tools.register({
       name: 'cost_gate',
-      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。status=true 只读返回当日峰时预算（Asia/Shanghai 自然日上限 ¥10）。',
+      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。status=true 只读返回当日峰时预算（Asia/Shanghai 自然日上限 ¥10）。report=“daily” 只读生成会话账单；sessionId 检查单会话 input 预算（默认 150k，可配 DSH_SESSION_WARN_TOKENS），handoff=true 写交接草稿。',
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
           plan: { type: 'object', description: '任务计划：{ tasks: [{ id, name, model, turns, inTokens, outTokens, local, media: [{ unitCNY, count }] }] }' },
           status: { type: 'boolean', description: '为 true 时只读返回当前峰时预算账本，不估价、不写放行' },
+          report: { type: 'string', enum: ['daily'], description: 'report:"daily" 只读扫描会话生成每日账单（需要系统 zstd 才能读 .zstd 会话）' },
+          sessionId: { type: 'string', description: '只检查该会话的 input token 预算，不估价、不写账本；超阈值只提示不阻断' },
+          handoff: { type: 'boolean', description: '配合 sessionId：写 docs/tmp/handoff-<sessionShort>.md 交接草稿' },
           now: { type: 'string', description: '可选，ISO 时间，用于测试峰谷判定' },
           approve: { type: 'boolean', description: '为 true 且计划里没有被拦截的任务（或 force=true）时，写入放行记录' },
           approve_tools: { type: 'array', items: { type: 'string' }, description: '放行哪些工具，默认 spawn_teammate/generate_audio/generate_comfyui；填 * 为全部' },
@@ -198,6 +218,26 @@ function applyInner(ctx) {
             ok: true,
             ...budget,
             text: `峰时预算（${budget.window}）：已用 ¥${budget.spentCNY.toFixed(2)} / ¥${budget.capCNY}，剩余 ¥${budget.remainingCNY.toFixed(2)}；${budget.resetAt} 重置。只统计 cost_gate 批准的估算额，不追溯已运行任务。`,
+          }
+        }
+        if (args.report === 'daily') {
+          const daily = sessionReport.dailyReport({ now })
+          return { ok: true, ...daily }
+        }
+        if (args.sessionId) {
+          try {
+            const budget = sessionReport.sessionBudget(String(args.sessionId), {
+              handoff: Boolean(args.handoff),
+              now,
+            })
+            return { ok: true, ...budget }
+          } catch (error) {
+            return {
+              ok: false,
+              error: String(error && error.message ? error.message : error),
+              code: error && error.code ? error.code : 'session-budget-error',
+              text: `会话预算读取失败：${String(error && error.message ? error.message : error)}`,
+            }
           }
         }
         const result = evaluate(prices, args.plan || {}, now)
@@ -225,7 +265,12 @@ function applyInner(ctx) {
           }
           if (!peakSpend.ok) {
             blockedByCap = true
-            handoff = writeHandoff(result, peakSpend, peakSpend.code)
+            try {
+              handoff = writeHandoff(result, peakSpend, peakSpend.code)
+            } catch (error) {
+              handoff = { file: null, hubCopy: null, error: String(error && error.message ? error.message : error), hubError: null }
+              console.warn(`[dsh-cost-gate] handoff write failed: ${handoff.error}`)
+            }
           } else {
             const tools = (Array.isArray(args.approve_tools) && args.approve_tools.length ? args.approve_tools : GATED)
             const minutes = Math.max(1, Math.min(720, Number(args.minutes) || 30))
@@ -238,7 +283,8 @@ function applyInner(ctx) {
         let text = renderReport(result, approved, allowanceMinutes)
         if (blockedByCap) {
           const budget = peakBudget.status(now)
-          text += `\n\n峰时预算已满：本窗口已用 ¥${budget.spentCNY.toFixed(2)} / ¥${budget.capCNY}，本次估算 ¥${Number(result.totalPeakCNY).toFixed(2)} 未放行。已写交接单：${handoff?.file || '(失败)'}；等下一个窗口重新投递。`
+          const handoffNote = handoff?.file || (handoff?.error ? `(失败：${handoff.error})` : '(失败)')
+          text += `\n\n峰时预算已满：本窗口已用 ¥${budget.spentCNY.toFixed(2)} / ¥${budget.capCNY}，本次估算 ¥${Number(result.totalPeakCNY).toFixed(2)} 未放行。已写交接单：${handoffNote}；等下一个窗口重新投递。`
         }
         return {
           ...result,
@@ -248,6 +294,8 @@ function applyInner(ctx) {
           peakSpend,
           handoff: handoff?.file || null,
           handoffHub: handoff?.hubCopy || null,
+          handoffError: handoff?.error || null,
+          handoffHubError: handoff?.hubError || null,
           text,
         }
       },

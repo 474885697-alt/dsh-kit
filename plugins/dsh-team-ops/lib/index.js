@@ -421,17 +421,14 @@ export function apply(ctx) {
         };
       }
       if (exec?.name !== 'team_task_create') return next();
-      // 缺省 subject 的旧调用保持原审批门行为；显式空串/错格式一律拒绝。
-      const subjectArg = exec?.arguments?.subject;
-      if (subjectArg !== undefined) {
-        const subject = String(subjectArg);
-        if (!TASK_SUBJECT_RE.test(subject)) {
-          return {
-            kind: 'deny',
-            reason: `team-ops: invalid-task-subject — ${JSON.stringify(subject)}`,
-            displayReason: '工单标题必须是“成员区-简短要求”，例如“文案区-文案的优化整理”',
-          };
-        }
+      // 缺省或空 subject 一律拒绝：工单标题必须显式符合 <成员区>-<要求>，不自动补默认名。
+      const subject = String(exec?.arguments?.subject ?? '');
+      if (!TASK_SUBJECT_RE.test(subject)) {
+        return {
+          kind: 'deny',
+          reason: `team-ops: invalid-task-subject — ${JSON.stringify(subject)}`,
+          displayReason: '工单标题必须是“成员区-简短要求”，例如“文案区-文案的优化整理”',
+        };
       }
       const description = exec?.arguments?.description;
       const sessionId = callingSessionId(exec);

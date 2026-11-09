@@ -39,14 +39,30 @@
 
 ## 峰时预算硬上限（¥10/日）
 
-2026-11-09 起，每个 `Asia/Shanghai` 自然日的峰时窗口（08:30–24:00）累计放行估算不得超过 ¥10。
+2026-11-09 起，每个 `Asia/Shanghai` 自然日累计放行估算不得超过 ¥10（谷时 `approve` 也计入，不区分峰谷）。
 
-- 账本：`~/.dsh/dsh-cost-gate/peak-spend.json`，字段 `{ window, spentCNY, entries: [{ ts, planId, totalPeakCNY }] }`；跨日按新窗口逻辑重置。
+- 账本：`~/.dsh/dsh-cost-gate/peak-spend.json`，字段 `{ window, spentCents, entries: [{ ts, planId, totalPeakCents }] }`；内部统一整数分，避免浮点误差；对外仍按元显示两位小数；跨日按新窗口逻辑重置。
 - `cost_gate` 新增 `status: true`：只读返回 `{ window, spentCNY, capCNY, remainingCNY, resetAt }`，不估价、不写放行。
 - `approve: true` 且准备写放行前，先调用 `peak-budget.charge(totalPeakCNY)`；命中上限时返回 `blockedByCap: true`，**不写放行**，并写交接单。
-- 交接单：`~/.dsh/dsh-cost-gate/handoffs/<window>-<ts>.json`，字段 `{ window, capCNY, spentCNY, tasks, reason, createdAt, status: 'unfinished' }`；若当前目录存在 `docs/tmp/hub`，同时复制到 `docs/tmp/hub/cost-handoffs/`。
+- 交接单：`~/.dsh/dsh-cost-gate/handoffs/<window>-<ts>.json`，字段 `{ window, capCNY, spentCNY, tasks, reason, createdAt, status: 'unfinished' }`；若当前目录存在 `docs/tmp/hub`，同时复制到 `docs/tmp/hub/cost-handoffs/`。主单写失败或 hub 副本失败都只记录 `handoffError` / `handoffHubError` 并告警，不阻断 `blockedByCap` 的 deny 返回。
 - `spawn_teammate` / `generate_audio` / `generate_comfyui` 的 pre-execute 在预算用完后返回 `kind: 'deny'`，reason 为 `cost-gate: peak-cap — 峰时预算 ¥10 已用完`，并提示“已保存交接单，等中枢区下个窗口重新投递”。
 - 口径：只统计 `cost_gate` 批准的估算额，**不追溯已经跑起来的任务**；达到上限后新任务不启动，已在跑的由 Lead 按交接单 interrupt。
+
+## 每日账单与会话预算守卫（2026-11-09）
+
+只读接口，不写峰时账本、不阻断工具、不自动开新会话：
+
+```json
+{ "report": "daily" }
+{ "sessionId": "session-xxxxxxxx", "handoff": true }
+```
+
+- `report: "daily"`：扫描 `DSH_SESSIONS_DIR`（默认 `~/.dsh/sessions`）下的 `*.jsonl` / `*.jsonl.zstd`，按 `assistant/message.data.usage` 聚合 input / cached / output 与估算 ¥，列出 Top 10 会话。
+- 压缩会话用系统 `zstd -dc`；**不新增 npm 依赖**。有 `.zstd` 文件但 `where zstd` 找不到时返回 `supported: false` 并提示安装；只有未压缩 `.jsonl` 时不需要 zstd。
+- 单价由 env `DSH_PRICE_INPUT` / `DSH_PRICE_CACHED` / `DSH_PRICE_OUTPUT` 指定，单位元/百万 token，默认 `2 / 0.2 / 3`。
+- `sessionId`：累计该会话 `usage.inputTokens`，超过 `DSH_SESSION_WARN_TOKENS`（默认 150000）时返回 `sessionBudget.warn: true`，只提示；`cacheReadTokens` 另见 `cachedTokens` / `contextTokens`。
+- `handoff: true`：写 `docs/tmp/handoff-<sessionShort>.md` 草稿（目标 / 已完成 / 待做 / 下一步，≤40 行），返回路径；`docs/tmp` 已 gitignore，不提交。
+- 验收：`node plugins/dsh-cost-gate/test/daily-report.test.mjs`、`node plugins/dsh-cost-gate/test/session-budget.test.mjs`。
 
 单卡自检：
 

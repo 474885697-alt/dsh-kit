@@ -5,8 +5,10 @@
  *
  * 只统计 cost_gate 放行时记录的估算额，不追溯已经跑起来的任务。
  * 账本：`<DSH_HOME>/dsh-cost-gate/peak-spend.json`
- *   { window: 'YYYY-MM-DD', spentCNY, entries: [{ ts, planId, totalPeakCNY }] }
+ *   { window: 'YYYY-MM-DD', spentCents, entries: [{ ts, planId, totalPeakCents }] }
  *
+ * 金额内部统一用整数分（cents）存储与比较，避免 0.1 + 0.2 这类浮点误差；
+ * 对外仍返回 / 展示人民币元（CNY），保留两位小数。
  * 跨日视为新窗口（逻辑重置，不主动改写旧账）。
  */
 
@@ -16,7 +18,7 @@ const { homedir } = require('node:os')
 
 const TZ = 'Asia/Shanghai'
 const CAP_CNY = 10
-const EPS = 1e-9
+const CAP_CENTS = CAP_CNY * 100
 
 function baseDir() {
   const home = process.env.DSH_HOME || join(homedir(), '.dsh')
@@ -45,12 +47,41 @@ function resetAtFor(window) {
   return new Date(Date.UTC(year, month - 1, day + 1) - 8 * 3600 * 1000).toISOString()
 }
 
-function round4(value) {
-  return Number(Number(value).toFixed(4))
+/** 元 -> 整数分；非法金额返回 null。 */
+function toCents(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return null
+  return Math.round(n * 100)
+}
+
+/** 整数分 -> 元。 */
+function toCNY(cents) {
+  return Number(cents) / 100
 }
 
 function emptyLedger(window) {
-  return { window, spentCNY: 0, entries: [] }
+  return { window, spentCents: 0, entries: [] }
+}
+
+function normalizeEntries(raw) {
+  if (!Array.isArray(raw)) return []
+  const entries = []
+  for (const entry of raw) {
+    let cents = null
+    if (Number.isInteger(entry?.totalPeakCents) && entry.totalPeakCents >= 0) {
+      cents = entry.totalPeakCents
+    } else if (Number.isFinite(Number(entry?.totalPeakCNY)) && Number(entry.totalPeakCNY) >= 0) {
+      // 兼容 task-16 的旧账本（元，浮点）。
+      cents = Math.round(Number(entry.totalPeakCNY) * 100)
+    }
+    if (cents === null) continue
+    entries.push({
+      ts: typeof entry?.ts === 'string' ? entry.ts : null,
+      planId: entry?.planId == null ? null : String(entry.planId),
+      totalPeakCents: cents,
+    })
+  }
+  return entries
 }
 
 function readLedger(now = new Date()) {
@@ -61,11 +92,16 @@ function readLedger(now = new Date()) {
   } catch {
     return emptyLedger(window)
   }
-  const spent = Number(raw?.spentCNY)
-  if (raw?.window !== window || !Array.isArray(raw?.entries) || !Number.isFinite(spent) || spent < 0) {
+  let spentCents = null
+  if (Number.isInteger(raw?.spentCents) && raw.spentCents >= 0) {
+    spentCents = raw.spentCents
+  } else if (Number.isFinite(Number(raw?.spentCNY)) && Number(raw.spentCNY) >= 0) {
+    spentCents = Math.round(Number(raw.spentCNY) * 100)
+  }
+  if (raw?.window !== window || !Array.isArray(raw?.entries) || spentCents === null) {
     return emptyLedger(window)
   }
-  return { window, spentCNY: round4(spent), entries: raw.entries }
+  return { window, spentCents, entries: normalizeEntries(raw.entries) }
 }
 
 function writeLedger(ledger) {
@@ -84,8 +120,8 @@ function writeLedger(ledger) {
 
 function status(now = new Date()) {
   const ledger = readLedger(now)
-  const spentCNY = round4(ledger.spentCNY)
-  const remainingCNY = round4(Math.max(0, CAP_CNY - spentCNY))
+  const spentCNY = toCNY(ledger.spentCents)
+  const remainingCNY = toCNY(Math.max(0, CAP_CENTS - ledger.spentCents))
   return {
     window: ledger.window,
     spentCNY,
@@ -97,23 +133,24 @@ function status(now = new Date()) {
 
 /**
  * 记一笔放行估算。金额非法或超出上限时不写账。
+ * 入参为元，进入账本前先转整数分。
  * @param {number} amountCNY
  * @param {{ planId?: string, now?: Date }} [meta]
  */
 function charge(amountCNY, meta = {}) {
-  const amount = Number(amountCNY)
+  const amountCents = toCents(amountCNY)
   const now = meta.now instanceof Date ? meta.now : new Date()
-  if (!Number.isFinite(amount) || amount < 0) {
+  if (amountCents === null || amountCents < 0) {
     const current = status(now)
     return { ok: false, code: 'invalid-amount', window: current.window, spentCNY: current.spentCNY, remainingCNY: current.remainingCNY, capCNY: CAP_CNY }
   }
 
   const ledger = readLedger(now)
-  const spentCNY = round4(ledger.spentCNY)
-  const remainingCNY = round4(Math.max(0, CAP_CNY - spentCNY))
-  const nextSpent = round4(spentCNY + amount)
+  const spentCNY = toCNY(ledger.spentCents)
+  const remainingCNY = toCNY(Math.max(0, CAP_CENTS - ledger.spentCents))
+  const nextSpentCents = ledger.spentCents + amountCents
 
-  if (nextSpent > CAP_CNY + EPS) {
+  if (nextSpentCents > CAP_CENTS) {
     return {
       ok: false,
       code: 'peak-cap',
@@ -127,15 +164,15 @@ function charge(amountCNY, meta = {}) {
   const entries = ledger.entries.concat({
     ts: now.toISOString(),
     planId: meta.planId ? String(meta.planId) : null,
-    totalPeakCNY: round4(amount),
+    totalPeakCents: amountCents,
   })
-  writeLedger({ window: ledger.window, spentCNY: nextSpent, entries })
+  writeLedger({ window: ledger.window, spentCents: nextSpentCents, entries })
 
   return {
     ok: true,
     window: ledger.window,
-    spentCNY: nextSpent,
-    remainingCNY: round4(Math.max(0, CAP_CNY - nextSpent)),
+    spentCNY: toCNY(nextSpentCents),
+    remainingCNY: toCNY(Math.max(0, CAP_CENTS - nextSpentCents)),
     capCNY: CAP_CNY,
   }
 }
@@ -143,10 +180,12 @@ function charge(amountCNY, meta = {}) {
 module.exports = {
   TZ,
   CAP_CNY,
+  CAP_CENTS,
   baseDir,
   ledgerPath,
   windowFor,
   resetAtFor,
+  toCents,
   readLedger,
   charge,
   status,

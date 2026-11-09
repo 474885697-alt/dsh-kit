@@ -123,7 +123,7 @@ check('unknown-edit-skipped-allow', (await callTool('edit', { file_path: 'src/wh
 check('unknown-spawn-deny', isRoleDeny(await callTool('spawn_teammate', {}, 'unknown-session-1')));
 
 // 5) team_task_create 原有审批门不被 role-guard 改动：hub 建单先过角色门，再被审批门拒
-const hubGate = await callTool('team_task_create', { description: '派给 tools：x' }, 'hub-session-1');
+const hubGate = await callTool('team_task_create', { subject: '中枢区-接线测试', description: '派给 tools：x' }, 'hub-session-1');
 check('task-create-approval-gate-intact', hubGate.result?.kind === 'deny' && /^approval-gate:/.test(String(hubGate.result.reason)) && !hubGate.nextCalled, hubGate);
 
 // 6) 审计：字段白名单；deny 行 = deny 次数；skipped 1 行

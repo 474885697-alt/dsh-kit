@@ -43,8 +43,8 @@ check('charge-exact-cap', exact.ok === true && exact.spentCNY === 10 && exact.re
 const over = peakBudget.charge(0.01, { planId: 'p3', now })
 check('charge-over-cap', over.ok === false && over.code === 'peak-cap' && over.spentCNY === 10 && over.remainingCNY === 0, over)
 const stored = JSON.parse(fs.readFileSync(ledgerFile, 'utf8'))
-check('ledger-unchanged-on-reject', stored.spentCNY === 10 && stored.entries.length === 2, stored)
-check('ledger-entry-fields', stored.entries.every((e) => typeof e.ts === 'string' && 'planId' in e && typeof e.totalPeakCNY === 'number'), stored.entries)
+check('ledger-unchanged-on-reject', stored.spentCents === 1000 && stored.entries.length === 2, stored)
+check('ledger-entry-cents', stored.entries.every((e) => typeof e.ts === 'string' && 'planId' in e && Number.isInteger(e.totalPeakCents)), stored.entries)
 
 // 5) 跨日逻辑重置
 fs.writeFileSync(ledgerFile, JSON.stringify({
@@ -57,7 +57,16 @@ check('window-reset', nextDay.window === window && nextDay.spentCNY === 0 && nex
 const afterReset = peakBudget.charge(1, { planId: 'p4', now })
 check('charge-after-reset', afterReset.ok === true && afterReset.spentCNY === 1, afterReset)
 
-// 6) cost_gate status 参数 + approve 命中上限写交接单
+// 6) 金额整数分：0.1 + 0.2 不应出现浮点尾数
+fs.rmSync(ledgerFile, { force: true })
+const centA = peakBudget.charge(0.1, { planId: 'cent-a', now })
+const centB = peakBudget.charge(0.2, { planId: 'cent-b', now })
+const centStatus = peakBudget.status(now)
+check('cents-0.1+0.2', centA.ok === true && centB.ok === true && centStatus.spentCNY === 0.3 && centStatus.remainingCNY === 9.7, centStatus)
+const centLedger = JSON.parse(fs.readFileSync(ledgerFile, 'utf8'))
+check('cents-integer-ledger', centLedger.spentCents === 30 && centLedger.entries.every((e) => Number.isInteger(e.totalPeakCents) && e.totalPeakCents > 0), centLedger)
+
+// 7) cost_gate status 参数 + approve 命中上限写交接单
 const { apply } = await import('../lib/index.js')
 let captured = null
 const ctx = {
@@ -71,8 +80,8 @@ check('tool-registered', captured?.name === 'cost_gate', captured?.name)
 const statusResult = await captured.execute({ status: true, now: now.toISOString() })
 check('tool-status', statusResult.ok === true && statusResult.window === window && statusResult.capCNY === 10 && /峰时预算/.test(statusResult.text), statusResult)
 
-// 把本窗口补满到 10
-peakBudget.charge(9, { planId: 'p5', now })
+// 把本窗口补满到 10（已有 0.1 + 0.2）
+peakBudget.charge(9.7, { planId: 'p5', now })
 const capResult = await captured.execute({
   now: now.toISOString(),
   force: true,
@@ -89,6 +98,32 @@ check('handoff-task', handoff.tasks.some((t) => t.id === 't-finish' && typeof t.
 
 const afterCap = peakBudget.status(now)
 check('ledger-still-cap', afterCap.spentCNY === 10 && afterCap.remainingCNY === 0, afterCap)
+
+// 8) 交接单 hub 副本失败：主单已写，不抛错，记录 hubError
+const hubHandoffDir = path.join(tmp, 'docs', 'tmp', 'hub', 'cost-handoffs')
+fs.rmSync(hubHandoffDir, { recursive: true, force: true })
+fs.writeFileSync(hubHandoffDir, 'not-a-dir', 'utf8')
+const hubFail = await captured.execute({
+  now: now.toISOString(),
+  force: true,
+  approve: true,
+  plan: { tasks: [{ id: 't-hub-fail', name: 'hub 失败', model: 'deepseek-flash', turns: 1, inTokens: 1000, outTokens: 1000 }] },
+})
+check('handoff-hub-failure-keeps-primary', hubFail.blockedByCap === true && typeof hubFail.handoff === 'string' && fs.existsSync(hubFail.handoff) && hubFail.handoffHub === null && typeof hubFail.handoffHubError === 'string', hubFail)
+fs.rmSync(hubHandoffDir, { force: true })
+
+// 9) 主交接单写失败（DSH_HOME 指向文件）：仍返回 deny，不抛错
+const badHome = path.join(tmp, 'home-is-a-file')
+fs.writeFileSync(badHome, 'x', 'utf8')
+process.env.DSH_HOME = badHome
+const primaryFail = await captured.execute({
+  now: now.toISOString(),
+  force: true,
+  approve: true,
+  plan: { tasks: [{ id: 't-write-fail', name: '写失败', model: 'deepseek-flash', turns: 1, inTokens: 1000, outTokens: 1000 }] },
+})
+process.env.DSH_HOME = tmp
+check('handoff-primary-failure-does-not-throw', primaryFail.blockedByCap === true && primaryFail.handoff === null && typeof primaryFail.handoffError === 'string' && /失败/.test(primaryFail.text), primaryFail)
 
 const failed = checks.filter((c) => !c.ok)
 const out = { ok: failed.length === 0, checks: checks.length, passed: checks.length - failed.length, failed: failed.map((c) => c.name), tmp }
