@@ -2,8 +2,9 @@
  * 会话账单与会话预算（task-24）。
  *
  * 只读：扫描 DSH 会话文件，解析 assistant/message.data.usage，不写峰时账本。
- * - 压缩会话：调用系统 `zstd -dc`；没有系统 zstd 时，若存在 .zstd 文件则
- *   supported:false（不新增 npm 依赖）。
+ * - 压缩会话：优先用 Node 内置 zlib 的 zstd 解码（Node ≥ 22.15），
+ *   否则调用系统 `zstd -dc`；两者都没有时，若存在 .zstd 文件则 supported:false。
+ * - 不新增 npm 依赖。
  * - 未压缩 `.jsonl` 夹具不需要 zstd，便于测试。
  */
 'use strict'
@@ -12,6 +13,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+const zlib = require('node:zlib')
 
 const DEFAULT_THRESHOLD = 150000
 const PRICE_DEFAULTS = { input: 2, cached: 0.2, output: 3 }
@@ -42,6 +44,7 @@ function sessionsRoot() {
 }
 
 function detectZstd() {
+  if (typeof zlib.zstdDecompressSync === 'function') return true
   try {
     const cmd = process.platform === 'win32' ? 'where' : 'which'
     const out = spawnSync(cmd, ['zstd'], { encoding: 'utf8', windowsHide: true })
@@ -85,6 +88,13 @@ function readSessionText(file, zstdAvailable) {
     const error = new Error('zstd 不可用，无法读取压缩会话')
     error.code = 'zstd-unavailable'
     throw error
+  }
+  if (typeof zlib.zstdDecompressSync === 'function') {
+    try {
+      return zlib.zstdDecompressSync(fs.readFileSync(file)).toString('utf8')
+    } catch {
+      // 不是 zstd 帧或 Node 解码失败时，回退到系统命令
+    }
   }
   const out = spawnSync('zstd', ['-dc', file], {
     maxBuffer: 128 * 1024 * 1024,
