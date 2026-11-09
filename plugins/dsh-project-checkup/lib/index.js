@@ -24,6 +24,16 @@ const execFileAsync = promisify(execFile)
 const PROFILE_FILES = ['dsh-checkup.json', '.dsh-checkup.json']
 const GLOBAL_CONFIG = 'checks.json'
 const MAX_CHECKS = 60
+// 默认只此一处；可用环境变量 SEEKER_URL 覆盖（如隔离端口 3120）。
+const DEFAULT_SEEKER_URL = 'http://127.0.0.1:3000'
+
+function baseUrl() {
+  return (process.env.SEEKER_URL || DEFAULT_SEEKER_URL).replace(/\/+$/, '')
+}
+
+function expandUrl(raw) {
+  return String(raw || '').replace(/\$\{?SEEKER_URL\}?/g, baseUrl())
+}
 
 function dshHome() {
   return process.env.DSH_HOME || join(homedir(), '.dsh')
@@ -124,6 +134,7 @@ function normalizeSpec(spec, index) {
     note: spec.note ? String(spec.note) : '',
     message: spec.message ? String(spec.message) : '',
     status: spec.status ? String(spec.status) : '',
+    group: spec.group ? String(spec.group) : '',
     optional: Boolean(spec.optional || spec.note === 'optional'),
   }
 }
@@ -173,12 +184,25 @@ async function runChecker(spec, dir) {
     }
     case 'http': {
       if (!spec.url) return check(spec.id, spec.label, 'skip', '未指定 url')
+      const url = expandUrl(spec.url)
       try {
-        const response = await fetch(spec.url, { signal: AbortSignal.timeout(spec.timeout > 45000 ? 45000 : spec.timeout) })
+        const response = await fetch(url, { signal: AbortSignal.timeout(spec.timeout > 45000 ? 45000 : spec.timeout) })
         const ok = response.status === spec.expect
-        return check(spec.id, spec.label, ok ? 'pass' : 'warn', `HTTP ${response.status}（期望 ${spec.expect}）`)
+        return check(spec.id, spec.label, ok ? 'pass' : 'fail', `${url} → HTTP ${response.status}（期望 ${spec.expect}）`)
       } catch (error) {
-        return check(spec.id, spec.label, 'warn', `未响应：${error.message}`)
+        return check(spec.id, spec.label, 'fail', `${url} 未响应：${error.message}`)
+      }
+    }
+    case 'adb': {
+      const adb = process.env.ADB || (process.platform === 'win32' ? 'adb.exe' : 'adb')
+      try {
+        const result = await execFileAsync(adb, ['devices'], { cwd: dir, timeout: spec.timeout, windowsHide: true })
+        const devices = String(result.stdout || '').split(/\r?\n/).filter((line) => /\tdevice$/.test(line.trim()) || /\sdevice$/.test(line.trim()))
+        return devices.length
+          ? check(spec.id, spec.label, 'pass', `${devices.length} 台设备在线`)
+          : check(spec.id, spec.label, 'unverified', '无在线设备（未验证，不算失败）')
+      } catch {
+        return check(spec.id, spec.label, 'unverified', '未找到 adb（未验证，不算失败）')
       }
     }
     case 'count': {
@@ -253,6 +277,18 @@ async function detectProfile(dir) {
     if (await exists(join(dir, 'tools', 'check-syntax.cjs'))) {
       full.push({ id: 'inline-syntax', type: 'script', path: 'tools/check-syntax.cjs', label: '内联脚本语法' })
     }
+    if (await exists(join(dir, 'tools', 'ui-audit.cjs'))) {
+      quick.push({ id: 'ui-audit-script', type: 'file', path: 'tools/ui-audit.cjs', label: 'UI 审计脚本存在' })
+      full.push({
+        id: 'ui-audit',
+        type: 'script',
+        path: 'tools/ui-audit.cjs',
+        label: '响应式/遮挡/弹窗 UI 审计（服务需运行）',
+        args: ['--strict', '--json'],
+        optional: true,
+        timeout: 180000,
+      })
+    }
     full.push({ id: 'todo', type: 'todo', path: 'index.html', label: '未完成标记' })
   }
 
@@ -313,7 +349,7 @@ async function loadProfile(dir) {
 /* scan                                                                */
 /* ------------------------------------------------------------------ */
 
-async function scan(scope = 'quick', explicitDir) {
+async function scan(scope = 'quick', explicitDir, group = '') {
   const candidates = await candidateDirs(explicitDir)
   let profile = null
   for (const dir of candidates) {
@@ -325,17 +361,29 @@ async function scan(scope = 'quick', explicitDir) {
 
   const dir = profile.dir
   const full = scope === 'full'
+  const wanted = String(group || '').trim().toLowerCase()
   const specs = (full ? [...profile.quick, ...profile.full] : profile.quick)
     .map((spec, index) => normalizeSpec(spec, index))
     .filter(Boolean)
+    .filter((spec) => !wanted || spec.group === wanted)
     .slice(0, MAX_CHECKS)
 
   const checks = []
   for (const spec of specs) {
     try {
-      checks.push(await runChecker(spec, dir))
+      const result = await runChecker(spec, dir)
+      if (spec.optional && result.status === 'fail') {
+        result.status = 'warn'
+        result.detail = `[可选] ${result.detail}`
+      }
+      checks.push(result)
     } catch (error) {
-      checks.push(check(spec.id, spec.label, 'fail', String(error.message || error)))
+      const result = check(spec.id, spec.label, 'fail', String(error.message || error))
+      if (spec.optional) {
+        result.status = 'warn'
+        result.detail = `[可选] ${result.detail}`
+      }
+      checks.push(result)
     }
   }
 
@@ -347,15 +395,17 @@ async function scan(scope = 'quick', explicitDir) {
   const fail = checks.filter((item) => item.status === 'fail').length
   const warn = checks.filter((item) => item.status === 'warn').length
   const skip = checks.filter((item) => item.status === 'skip').length
-  const counted = pass + fail + warn
+  const unverified = checks.filter((item) => item.status === 'unverified').length
+  const counted = pass + fail + warn + unverified
   return {
     ok: fail === 0,
     scope: full ? 'full' : 'quick',
+    group: wanted || null,
     name: profile.name,
     projectDir: dir,
     profileSource: profile.source,
     generatedAt: Date.now(),
-    summary: { pass, warn, fail, skip, total: checks.length, score: Math.round((pass / Math.max(1, counted)) * 100) },
+    summary: { pass, warn, fail, skip, unverified, total: checks.length, score: Math.round((pass / Math.max(1, counted)) * 100) },
     checks,
   }
 }
@@ -372,8 +422,9 @@ export function makeRoutes() {
         const url = new URL(req.url || '/', 'http://localhost')
         const scope = url.searchParams.get('scope') === 'full' ? 'full' : 'quick'
         const dir = url.searchParams.get('dir') || ''
+        const group = url.searchParams.get('group') || ''
         try {
-          sendJson(res, 200, await scan(scope, dir))
+          sendJson(res, 200, await scan(scope, dir, group))
         } catch (error) {
           sendJson(res, 500, { ok: false, error: String(error.message || error) })
         }

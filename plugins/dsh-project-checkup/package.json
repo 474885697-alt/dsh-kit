@@ -1,7 +1,7 @@
 {
   "name": "dsh-project-checkup",
-  "version": "0.1.0",
-  "description": "项目体检：语法与资源快检加完整健康报告；检查项写在项目里的 dsh-checkup.json，换项目不用改代码。",
+  "version": "0.1.1",
+  "description": "项目体检：语法与资源快检、UI 响应式/遮挡审计；检查项写在项目 dsh-checkup.json，换项目不用改代码。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

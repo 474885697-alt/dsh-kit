@@ -1,6 +1,6 @@
 {
   "name": "dsh-auto-skill",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "按当前任务自动挑选并注入最合适的技能，无需点名或手动插入；同一技能每次会话只注入一次，并可从有效操作中积累经验。",
   "type": "module",
   "main": "lib/index.js",

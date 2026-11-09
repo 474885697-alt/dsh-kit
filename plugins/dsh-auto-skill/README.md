@@ -53,6 +53,7 @@ GET /api/dsh-auto-skill/match?text=帮我写一章小说，悬疑风格，主角
 | --- | --- | --- |
 | GET | `/api/dsh-auto-skill/match` | `?text=<任务文本>&dir=<目录>`，返回打分与入选技能（纯诊断，不注入） |
 | GET | `/api/dsh-auto-skill/learned` | `?name=<技能名>`，返回该技能积累的做法摘要 |
+| GET | `/api/dsh-auto-skill/health` | 返回 `version` 与生效的 `teamPolicy/teamAllow/teamExclude`，用于确认 0.3.x 已加载 |
 
 ## 配置
 
@@ -70,6 +71,28 @@ GET /api/dsh-auto-skill/match?text=帮我写一章小说，悬疑风格，主角
 - 只读任务文本与本机技能目录；不改会话历史，不覆盖 `SKILL.md`。
 - 注入内容带 `source.kind = "auto-skill"`，DSH 不会把它当成用户消息重复处理。
 - 任何异常都被吞掉并原样返回决策，不会让一步失败拖垮整轮。
+
+## 团队 / 子会话策略（0.3.0）
+
+团队会话（`header.origin === "subagent"`、带 `parentSession`、或 `delegationDepth > 0`）可以关闭或收窄自动注入；普通个人会话完全不受影响。
+
+| 配置键 | 取值 | 说明 |
+| --- | --- | --- |
+| `teamPolicy` | `inherit`（默认）/ `off` / `allow` / `exclude` | `inherit` 保持旧行为（`teamExclude` 仍生效，`teamAllow` 不生效）；`off` 团队会话不自动注入；`allow` 只注入 `teamAllow` 名单；`exclude` 注入除 `teamExclude` 外的技能 |
+| `teamAllow` | 技能名数组 | 仅 `teamPolicy: "allow"` 时生效 |
+| `teamExclude` | 技能名数组 | 团队会话中**始终排除**（含 `inherit`），优先于 `teamAllow` |
+
+环境变量可覆盖（显式配置优先）：`DSH_AUTO_SKILL_TEAM_POLICY`、`DSH_AUTO_SKILL_TEAM_ALLOW`、`DSH_AUTO_SKILL_TEAM_EXCLUDE`（逗号或空格分隔）。
+
+示例（团队会话完全关闭自动注入）：
+
+```yaml
+- id: auto-skill
+  config:
+    teamPolicy: "off"
+```
+
+显式 `/skill` 或 `skill` 工具加载不受该策略影响。团队会话的匹配、学习与日志仍照常工作，只是不把技能正文注入消息。
 
 ## 已知行为
 

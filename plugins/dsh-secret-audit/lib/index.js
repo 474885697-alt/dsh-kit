@@ -156,6 +156,13 @@ export async function scan(roots, options) {
     byFile[key] = (byFile[key] || 0) + 1
   }
 
+  const security = await securityChecks(list)
+  const advice = buildAdvice(annotated, gitRisk, sharedConfigs)
+  const failedChecks = security.checks.filter((check) => check.status === 'fail')
+  const warnedChecks = security.checks.filter((check) => check.status === 'warn')
+  if (failedChecks.length) advice.push('安全项未通过：' + failedChecks.map((check) => check.title).join('、') + '。')
+  else if (warnedChecks.length) advice.push('安全项有提醒：' + warnedChecks.map((check) => check.title).join('、') + '。')
+
   return {
     ok: true,
     roots: list,
@@ -168,7 +175,8 @@ export async function scan(roots, options) {
     gitExposedFiles: gitRisk.slice(0, 40),
     credentialsFiles: credentialsFiles.slice(0, 20),
     sharedConfigs,
-    advice: buildAdvice(annotated, gitRisk, sharedConfigs),
+    security,
+    advice,
   }
 }
 
@@ -184,6 +192,167 @@ function buildAdvice(findings, gitRisk, sharedConfigs) {
   }
   advice.push('密钥一旦出现在聊天记录、日志或导出的会话里，最稳妥的处理是到平台吊销后重建。')
   return advice
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+function originHost(entry) {
+  try { return new URL(entry).hostname.replace(/^\[|\]$/g, '').toLowerCase() } catch { return '' }
+}
+
+async function findProjectRoot(roots) {
+  const candidates = []
+  for (const root of roots) {
+    let dir = resolve(root)
+    for (let i = 0; i < 5; i += 1) {
+      candidates.push(dir)
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+  }
+  for (const dir of candidates) {
+    if (await exists(join(dir, 'android', 'build-apk.ps1'))) return dir
+  }
+  return ''
+}
+
+async function collectDataDirs(roots, projectRoot) {
+  const set = new Set()
+  if (process.env.SEEKER_DATA_DIR) set.add(resolve(process.env.SEEKER_DATA_DIR))
+  for (const root of roots) set.add(join(root, 'data'))
+  if (projectRoot) set.add(join(projectRoot, 'data'))
+  return [...set]
+}
+
+async function checkSecretKeyFile(dirs) {
+  for (const dir of dirs) {
+    const file = join(dir, '.seeker-secret-key')
+    if (!(await exists(file))) continue
+    try {
+      const st = await stat(file)
+      const mode = st.mode & 0o777
+      const loose = process.platform === 'win32' ? true : (mode & 0o077) !== 0
+      return {
+        id: 'secret-key-permissions',
+        title: '本地加密密钥文件权限',
+        status: loose ? 'warn' : 'ok',
+        detail: process.platform === 'win32'
+          ? `存在 ${file}；Windows 下无法用 mode 判断，请确认 ACL 仅限当前用户`
+          : `存在 ${file}，权限 ${mode.toString(8)}${loose ? '（组/其他人可读）' : ''}`,
+      }
+    } catch {
+      return { id: 'secret-key-permissions', title: '本地加密密钥文件权限', status: 'warn', detail: '文件存在，但读取元数据失败' }
+    }
+  }
+  return { id: 'secret-key-permissions', title: '本地加密密钥文件权限', status: 'ok', detail: '未找到（首次启动时会创建并收紧权限）' }
+}
+
+async function checkAiConfigEncryption(dirs) {
+  let files = 0
+  let keys = 0
+  let plaintext = 0
+  const seen = new Set()
+  for (const dir of dirs) {
+    for (const name of ['ai-config.json', 'ai-configs.json']) {
+      const file = join(dir, name)
+      if (seen.has(file) || !(await exists(file))) continue
+      seen.add(file)
+      files += 1
+      try {
+        const json = JSON.parse(await readFile(file, 'utf8'))
+        const apis = json && json.apis && typeof json.apis === 'object' ? json.apis : {}
+        const values = Object.values(apis)
+        if (json && json.apiKey) values.push(json)
+        for (const value of values) {
+          const key = value && value.apiKey
+          if (!key) continue
+          keys += 1
+          if (!String(key).startsWith('enc:v1:')) plaintext += 1
+        }
+      } catch {
+        // malformed config: count as unreadable, not plaintext evidence
+      }
+    }
+  }
+  return {
+    id: 'ai-config-encryption',
+    title: 'AI 配置密钥是否加密（enc:v1:）',
+    status: plaintext ? 'fail' : 'ok',
+    detail: files ? `${files} 个配置文件，${keys} 个 Key，明文 ${plaintext} 个` : '未找到 ai-config(s).json',
+  }
+}
+
+function checkAllowedOrigins() {
+  const raw = process.env.SEEKER_ALLOWED_ORIGINS
+  if (!raw) return { id: 'allowed-origins-wildcard', title: '跨域白名单是否含非 loopback 通配', status: 'ok', detail: '未设置（使用默认白名单）' }
+  const entries = raw.split(',').map((s) => s.trim()).filter(Boolean)
+  const wildcard = entries.filter((entry) => entry.includes('*'))
+  const unsafe = wildcard.filter((entry) => entry === '*' || !LOOPBACK_HOSTS.has(originHost(entry)))
+  return {
+    id: 'allowed-origins-wildcard',
+    title: '跨域白名单是否含非 loopback 通配',
+    status: unsafe.length ? 'fail' : 'ok',
+    detail: unsafe.length ? `含 ${unsafe.length} 个非 loopback 通配` : `${entries.length} 条来源，无危险通配`,
+  }
+}
+
+function checkDevContentPublic() {
+  const enabled = process.env.DEV_CONTENT_PUBLIC === '1'
+  return {
+    id: 'dev-content-public',
+    title: 'dev 内容是否显式公开读取',
+    status: enabled ? 'warn' : 'ok',
+    detail: enabled ? 'DEV_CONTENT_PUBLIC=1 已开启（任意本机/同源请求可读）' : '未开启（默认需开发者权限）',
+  }
+}
+
+async function checkApkRelease(projectRoot) {
+  if (!projectRoot) return { id: 'apk-release-marker', title: 'APK 是否注入发布标记', status: 'warn', detail: '未找到 android/build-apk.ps1' }
+  try {
+    const text = await readFile(join(projectRoot, 'android', 'build-apk.ps1'), 'utf8')
+    const injected = text.includes('__SEEKER_RELEASE__')
+    return {
+      id: 'apk-release-marker',
+      title: 'APK 是否注入发布标记',
+      status: injected ? 'ok' : 'fail',
+      detail: injected ? 'build-apk.ps1 会注入 __SEEKER_RELEASE__' : 'build-apk.ps1 未注入 __SEEKER_RELEASE__',
+    }
+  } catch {
+    return { id: 'apk-release-marker', title: 'APK 是否注入发布标记', status: 'warn', detail: 'build-apk.ps1 不可读' }
+  }
+}
+
+async function checkWebViewDebugging(projectRoot) {
+  if (!projectRoot) return { id: 'webview-debugging', title: 'WebView 调试是否关闭', status: 'warn', detail: '未找到项目根' }
+  const file = join(projectRoot, 'android', 'java', 'com', 'seeker', 'trifeloa', 'MainActivity.java')
+  if (!(await exists(file))) return { id: 'webview-debugging', title: 'WebView 调试是否关闭', status: 'warn', detail: '未找到 MainActivity.java' }
+  try {
+    const text = await readFile(file, 'utf8')
+    const disabled = /setWebContentsDebuggingEnabled\(\s*false\s*\)/.test(text)
+    return {
+      id: 'webview-debugging',
+      title: 'WebView 调试是否关闭',
+      status: disabled ? 'ok' : 'fail',
+      detail: disabled ? 'MainActivity 已禁用 WebView 调试' : 'MainActivity 未禁用 WebView 调试',
+    }
+  } catch {
+    return { id: 'webview-debugging', title: 'WebView 调试是否关闭', status: 'warn', detail: 'MainActivity.java 不可读' }
+  }
+}
+
+async function securityChecks(roots) {
+  const projectRoot = await findProjectRoot(roots)
+  const dirs = await collectDataDirs(roots, projectRoot)
+  const checks = [
+    await checkSecretKeyFile(dirs),
+    await checkAiConfigEncryption(dirs),
+    checkAllowedOrigins(),
+    checkDevContentPublic(),
+    await checkApkRelease(projectRoot),
+    await checkWebViewDebugging(projectRoot),
+  ]
+  return { ok: checks.every((check) => check.status !== 'fail'), checks }
 }
 
 function makeRoutes() {

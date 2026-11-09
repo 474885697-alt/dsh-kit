@@ -1,0 +1,251 @@
+{
+    "version":  1,
+    "project":  "seeker-of-the-lost-divine",
+    "sourceOfTruth":  "src/",
+    "generated":  [
+                      "index.html",
+                      "server.js"
+                  ],
+    "rules":  [
+                  "禁止直接编辑 index.html / server.js；只能通过 node tools/build-all.cjs 生成",
+                  "每个模块只写自己 owns 的路径；跨模块改动先在对应模块提单",
+                  "跨模块共享的 id/字段先冻结在 docs/协作/接口冻结.md；任务拆分与派发见 docs/协作/任务拆分与派发规则.md",
+                  "核心逻辑归机制与系统（mechanics）：src/app/part-01..11、bootstrap、src/styles、src/server、index.template.html；其他模块只读核心，需要改逻辑时向 mechanics 提单",
+                  "合并前运行 npm run status、npm run check:assets、npm run lint:content、npm run docs:check",
+                  "不自动 merge；由 main 集成会话逐提交 cherry-pick / merge"
+              ],
+    "modules":  [
+                    {
+                        "id":  "mechanics",
+                        "member":  "mechanics",
+                        "label":  "机制与系统",
+                        "summary":  "底层逻辑、战斗经济与系统设计",
+                        "branch":  "module/mechanics",
+                        "worktree":  "../_worktrees/_mechanics",
+                        "owns":  [
+                                     "src/app/bootstrap.js",
+                                     "src/app/part-01.js",
+                                     "src/app/part-02.js",
+                                     "src/app/part-03.js",
+                                     "src/app/part-04.js",
+                                     "src/app/part-05.js",
+                                     "src/app/part-06.js",
+                                     "src/app/part-07.js",
+                                     "src/app/part-08.js",
+                                     "src/app/part-09.js",
+                                     "src/app/part-10.js",
+                                     "src/app/part-11.js",
+                                     "src/app/part-90-features.js",
+                                     "src/styles/part-01.css",
+                                     "src/styles/part-02.css",
+                                     "src/styles/part-03.css",
+                                     "src/styles/part-04.css",
+                                     "src/styles/part-90-features.css",
+                                     "src/server/part-01.js",
+                                     "src/server/part-02.js",
+                                     "src/server/part-03.js",
+                                     "src/server/part-04.js",
+                                     "src/server/part-90-features.js",
+                                     "src/index.template.html",
+                                     "docs/设计",
+                                     "src/unknown/x.js"
+                                 ],
+                        "reads":  [
+                                      "src/app/part-01.js",
+                                      "src/app/part-03.js",
+                                      "src/app/part-07.js",
+                                      "src/app/part-08.js",
+                                      "src/app/part-10.js"
+                                  ],
+                        "checks":  [
+                                       "npm run check:source",
+                                       "npm run smoke",
+                                       "npm run status"
+                                   ]
+                    },
+                    {
+                        "id":  "art-audio",
+                        "member":  "art-audio",
+                        "label":  "美术与音频",
+                        "summary":  "角色、种族、场景素材与音频",
+                        "branch":  "module/art-audio",
+                        "worktree":  "../_worktrees/_art-audio",
+                        "owns":  [
+                                     "assets/art/generated",
+                                     "assets/audio",
+                                     "promo",
+                                     "docs/previews"
+                                 ],
+                        "reads":  [
+                                      "src/app/part-07.js",
+                                      "src/app/part-08.js"
+                                  ],
+                        "checks":  [
+                                       "npm run check:assets"
+                                   ]
+                    },
+                    {
+                        "id":  "copy",
+                        "member":  "copy",
+                        "label":  "文案与世界观",
+                        "summary":  "世界观、图鉴、任务文案与文档",
+                        "branch":  "module/copy",
+                        "worktree":  "../_worktrees/_copy",
+                        "owns":  [
+                                     "docs",
+                                     "README.md",
+                                     "src/app/dev-source.json"
+                                 ],
+                        "reads":  [
+                                      "src/app/part-08.js",
+                                      "src/app/part-90-features.js"
+                                  ],
+                        "checks":  [
+                                       "npm run lint:content",
+                                       "npm run docs:check"
+                                   ]
+                    },
+                    {
+                        "id":  "release",
+                        "member":  "tools",
+                        "label":  "项目工具与发布",
+                        "summary":  "构建发布与项目自用工具",
+                        "branch":  "module/release",
+                        "worktree":  "../_worktrees/_release",
+                        "owns":  [
+                                     "tools",
+                                     "package.json",
+                                     "installer.iss",
+                                     "android",
+                                     "dist"
+                                 ],
+                        "reads":  [
+                                      "src/"
+                                  ],
+                        "checks":  [
+                                       "npm run status",
+                                       "npm run release:verify",
+                                       "npm run git:preflight"
+                                   ]
+                    },
+                    {
+                        "id":  "test",
+                        "member":  "test",
+                        "label":  "测试与体验",
+                        "summary":  "玩家视角试玩与竞品设计研究",
+                        "branch":  "module/test",
+                        "worktree":  "../_worktrees/_test",
+                        "owns":  [
+                                     "docs/测试",
+                                     "docs/tmp/test"
+                                 ],
+                        "reads":  [
+                                      "src/",
+                                      "docs/",
+                                      "tools/",
+                                      "index.html",
+                                      "server.js"
+                                  ],
+                        "checks":  [
+                                       "npm run status",
+                                       "npm run smoke"
+                                   ]
+                    },
+                    {
+                        "id":  "bug",
+                        "member":  "bug",
+                        "label":  "缺陷受理",
+                        "summary":  "玩家缺陷的复现、定级与修复方案",
+                        "branch":  "module/bug",
+                        "worktree":  "../_worktrees/_bug",
+                        "owns":  [
+                                     "docs/bug",
+                                     "docs/tmp/bug"
+                                 ],
+                        "reads":  [
+                                      "src/",
+                                      "docs/",
+                                      "tools/",
+                                      "data/workshop.json",
+                                      "index.html",
+                                      "server.js"
+                                  ],
+                        "checks":  [
+                                       "npm run status",
+                                       "npm run smoke"
+                                   ]
+                    },
+                    {
+                        "id":  "qa",
+                        "member":  "qa",
+                        "label":  "验收与回归",
+                        "summary":  "独立验收与回归验证",
+                        "branch":  "module/qa",
+                        "worktree":  "../_worktrees/_qa",
+                        "owns":  [
+                                     "docs/tmp/qa"
+                                 ],
+                        "reads":  [
+                                      "src/",
+                                      "tools/",
+                                      "docs/"
+                                  ],
+                        "checks":  [
+                                       "npm run smoke",
+                                       "npm run status -- --ui",
+                                       "npm run docs:check"
+                                   ]
+                    },
+                    {
+                        "id":  "online",
+                        "member":  "online",
+                        "label":  "联机与 AI 接入",
+                        "summary":  "联机房间、AI 接入与外部服务",
+                        "branch":  "module/online",
+                        "worktree":  "../_worktrees/_online",
+                        "owns":  [
+                                     "docs/联机",
+                                     "docs/tmp/online"
+                                 ],
+                        "reads":  [
+                                      "src/app/part-05.js",
+                                      "src/app/part-06.js",
+                                      "src/app/part-07.js",
+                                      "src/app/part-02.js",
+                                      "src/server/part-01.js",
+                                      "src/server/part-03.js",
+                                      "server.js"
+                                  ],
+                        "checks":  [
+                                       "npm run status",
+                                       "npm run smoke"
+                                   ]
+                    },
+                    {
+                        "id":  "hub",
+                        "member":  "hub",
+                        "label":  "中枢区",
+                        "summary":  "需求分析、任务拆解、派发协调与汇总",
+                        "branch":  "module/hub",
+                        "worktree":  "../_worktrees/_hub",
+                        "owns":  [
+                                     "docs/中枢",
+                                     "docs/tmp/hub"
+                                 ],
+                        "reads":  [
+                                      "docs/协作/",
+                                      "docs/测试/",
+                                      "docs/bug/",
+                                      "docs/联机/",
+                                      "docs/设计/",
+                                      "未竞.md",
+                                      "module.config.json",
+                                      "package.json"
+                                  ],
+                        "checks":  [
+                                       "npm run status",
+                                       "npm run docs:check"
+                                   ]
+                    }
+                ]
+}

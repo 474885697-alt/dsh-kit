@@ -2,7 +2,7 @@
 
 > 项目体检：检查项写在 `dsh-checkup.json` 里，换项目不用改代码。
 
-版本 0.1.0 ｜ 包名 `dsh-project-checkup` ｜ 仅宿主侧（无客户端代码）｜ MIT
+版本 0.1.1 ｜ 包名 `dsh-project-checkup` ｜ 仅宿主侧（无客户端代码）｜ MIT
 
 ## 它解决什么问题
 
@@ -79,3 +79,29 @@ GET /api/dsh-project-checkup/scan?scope=quick&dir=C:/path/to/project
 
 - Web / 桌面宿主：HTTP 路由与工具都可用。
 - headless / CLI（没有 webServer 服务）：路由自动跳过，工具照常注册。
+
+
+## UI audit (`ui-audit.cjs`)
+
+If a project provides `tools/ui-audit.cjs`, the plugin automatically adds a full-scope check named `ui-audit`. It runs the script with `--strict --json` and is marked optional: if the local service is down, the item is downgraded to `warn` instead of failing the whole checkup.
+
+The script should test real page geometry, not only static strings: horizontal overflow, fixed-control overlap, modal viewport bounds, close-button visibility, and small hit targets. See `docs/ui-contract.md` in the Seeker workspace for the reference contract.
+
+Recommended full scope:
+
+```text
+GET /api/dsh-project-checkup/scan?scope=full&dir=<project>
+```
+
+`optional` applies to any check spec; a failed optional check is reported as `warn` with a `[可选]` prefix.
+
+## SEEKER_URL and platform groups
+
+HTTP checks may use `${SEEKER_URL}` in `url`; it expands at run time from the environment, falling back to a single default constant (`http://127.0.0.1:3000`) that can be overridden without editing code:
+
+```powershell
+$env:SEEKER_URL = 'http://127.0.0.1:3120'
+node -e "import('./plugins/dsh-project-checkup/lib/index.js').then(async m => console.log(JSON.stringify(await m.scan('quick', process.cwd()))))"
+```
+
+Each check may declare `group: "web" | "apk" | "file"`; pass `group` as the third argument to `scan(scope, dir, group)` or `?group=` on the scan route to run one group alone. A failing `http` item now reports `fail` for that item only — other items still run. `adb` checks return `unverified` (not `fail`) when adb or a device is missing; `unverified` is counted separately in `summary` and does not fail the run.

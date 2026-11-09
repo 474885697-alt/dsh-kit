@@ -1,0 +1,34 @@
+{
+  "plugins": [
+    "dsh-audio-post",
+    "dsh-auto-skill",
+    "dsh-build-ship",
+    "dsh-comfyui",
+    "dsh-cost-gate",
+    "dsh-kit-ai-gateway",
+    "dsh-kit-config-sync",
+    "dsh-kit-guardian",
+    "dsh-kit-novel-studio",
+    "dsh-kit-session-hygiene",
+    "dsh-project-checkup",
+    "dsh-prose-polish",
+    "dsh-round-triage",
+    "dsh-rulebook",
+    "dsh-secret-audit",
+    "dsh-team-ops"
+  ],
+  "skills": [
+    "cost-gate",
+    "dsh-plugin-authoring",
+    "dsh-plugin-safety",
+    "game-rulebook-to-code",
+    "novel-prose",
+    "seeker-art-audio-assets",
+    "seeker-copy-world",
+    "seeker-mechanics-dev",
+    "seeker-module-worker",
+    "seeker-quick-check",
+    "windows-quiet-pc",
+    "windows-unblock-files"
+  ]
+}

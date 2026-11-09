@@ -1,0 +1,6 @@
+# dsh-comfyui bundle patch: adds the plugin row to the web profile roster.
+# The node half (exports ".") registers the local ComfyUI bridge routes;
+# the browser half (exports "./client") injects the sidebar studio.
+- insert:
+    - id: comfyui
+      name: dsh-comfyui

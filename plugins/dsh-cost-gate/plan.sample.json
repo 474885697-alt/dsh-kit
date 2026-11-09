@@ -1,0 +1,45 @@
+{
+  "tasks": [
+    {
+      "id": "BUG-1",
+      "name": "支线第二幕地块堵住主线必经走廊",
+      "model": "deepseek-flash",
+      "turns": 6,
+      "inTokens": 40000,
+      "outTokens": 10000,
+      "media": [],
+      "member": "mechanics"
+    },
+    {
+      "id": "BUG-3",
+      "name": "战斗切实时制仍自动开打",
+      "model": "deepseek-flash",
+      "turns": 3,
+      "inTokens": 30000,
+      "outTokens": 8000,
+      "media": [],
+      "member": "mechanics"
+    },
+    {
+      "id": "BUG-2",
+      "name": "委托卡难度标签窄屏隐藏",
+      "model": "deepseek-flash",
+      "turns": 3,
+      "inTokens": 25000,
+      "outTokens": 6000,
+      "media": [],
+      "member": "mechanics"
+    },
+    {
+      "id": "LOCAL-CHECK",
+      "name": "本地构建与冒烟检查",
+      "local": true,
+      "model": "local",
+      "turns": 1,
+      "inTokens": 20000,
+      "outTokens": 3000,
+      "media": [],
+      "member": "local"
+    }
+  ]
+}

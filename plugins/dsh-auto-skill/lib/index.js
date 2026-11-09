@@ -23,6 +23,9 @@ import { join } from 'node:path';
 export const name = 'auto-skill';
 export const inject = ['skills', 'workingDirectory'];
 
+/** 对外健康检查用，与 package.json 同步；0.3.x 起 match/health 都带版本。 */
+const VERSION = '0.3.1';
+
 const DEFAULTS = {
   enabled: true,
   maxSkills: 1,
@@ -269,6 +272,31 @@ function serializeLearned(entries) {
   return entries.map((entry) => `## ${entry.heading}\n${entry.body}`.trimEnd()).join('\n\n') + '\n';
 }
 
+/**
+ * 经验里出现的是工具调用原文，可能顺手带上密钥（例如某条命令里写了 token）。
+ * 写盘前一律打码：宁可丢掉细节，也不把凭据落进技能目录。
+ */
+const SECRET_RULES = [
+  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g,
+  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g,
+  /\bsk-[A-Za-z0-9_-]{16,}\b/g,
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}\b/g,
+];
+
+const SECRET_PREFIX_RULES = [
+  /\b(Bearer\s+)[A-Za-z0-9._-]{16,}/g,
+  /\b((?:api[-_]?key|apikey|token|secret|password|passwd|authorization)\s*[:=]\s*["']?)[^\s"',}]{8,}/gi,
+];
+
+function redactSecrets(text) {
+  let out = String(text || '');
+  for (const rule of SECRET_RULES) out = out.replace(rule, '<redacted>');
+  for (const rule of SECRET_PREFIX_RULES) out = out.replace(rule, (_match, prefix) => `${prefix}<redacted>`);
+  return out;
+}
+
 function normalizeLearning(text) {
   return String(text || '').toLowerCase().replace(/[\s\u3000]+/g, '').replace(/[，。；：、"“”（）()\[\]【】]/g, '');
 }
@@ -284,15 +312,17 @@ function appendLearning(skillName, entry, config) {
   } catch {
     existing = '';
   }
-  const hash = createHash('sha256').update(normalizeLearning(entry.method + '|' + (entry.evidence || ''))).digest('hex').slice(0, 12);
+  const method = redactSecrets(entry.method).trim();
+  const evidence = entry.evidence ? redactSecrets(entry.evidence).trim() : '';
+  const hash = createHash('sha256').update(normalizeLearning(method + '|' + evidence)).digest('hex').slice(0, 12);
   if (existing.includes('h:' + hash)) return { ok: false, reason: 'duplicate' };
 
   const stamp = new Date().toISOString();
   const lines = [
     `## ${stamp} [${entry.tag || 'manual'}] <!-- h:${hash} -->`,
-    `- 做法：${String(entry.method || '').trim()}`,
+    `- 做法：${method}`,
   ];
-  if (entry.evidence) lines.push(`- 依据：${String(entry.evidence).trim()}`);
+  if (evidence) lines.push(`- 依据：${evidence}`);
   if (entry.session) lines.push(`- 会话：${entry.session}`);
   const next = (existing.trimEnd() ? existing.trimEnd() + '\n\n' : '') + lines.join('\n') + '\n';
 
@@ -350,7 +380,7 @@ function describeToolCall(exec, result) {
   } catch {
     args = '';
   }
-  return { tool: toolName, ok, args: args.slice(0, 140) };
+  return { tool: toolName, ok, args: redactSecrets(args).slice(0, 140) };
 }
 
 /** 取本轮用户输入：最后一条真正的用户消息（排除技能目录/注入类消息）。 */
@@ -655,7 +685,7 @@ export function apply(ctx, configInput) {
             });
           }
           res.setHeader('content-type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ ok: true, text, total: skills.length, matches: rows, config }, null, 2));
+          res.end(JSON.stringify({ ok: true, version: VERSION, text, total: skills.length, matches: rows, config }, null, 2));
         })().catch((error) => {
           res.statusCode = 500;
           res.end(String(error && error.message ? error.message : error));
@@ -690,12 +720,34 @@ export function apply(ctx, configInput) {
       },
     });
 
+    const healthRoute = scope.webServer.register({
+      kind: 'exact',
+      path: '/api/dsh-auto-skill/health',
+      handler(req, res) {
+        const remote = String((req.socket && req.socket.remoteAddress) || '');
+        if (!(remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1')) {
+          res.statusCode = 403;
+          res.end('loopback only');
+          return;
+        }
+        res.setHeader('content-type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({
+          ok: true,
+          version: VERSION,
+          teamPolicy: config.teamPolicy,
+          teamAllow: config.teamAllow,
+          teamExclude: config.teamExclude,
+        }, null, 2));
+      },
+    });
+
     return () => {
       route.dispose?.();
       learnedRoute.dispose?.();
+      healthRoute.dispose?.();
     };
   }));
 }
 
 /** Test-only surface (kept ASCII so the file stays valid UTF-8). */
-export const __internals = { keywordsOf, buildDf, scoreSkill, latestUserText, renderAutoSkillMessage, renderSkillContent, normalizeConfig, appendLearning, learnedDigest, parseLearned, findSkillDir, describeToolCall, skillsRoot };
+export const __internals = { keywordsOf, buildDf, scoreSkill, latestUserText, renderAutoSkillMessage, renderSkillContent, normalizeConfig, appendLearning, learnedDigest, parseLearned, findSkillDir, describeToolCall, skillsRoot, redactSecrets };

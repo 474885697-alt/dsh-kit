@@ -1,0 +1,4 @@
+# dsh-cost-gate bundle patch: adds the cost-gate row to the web profile roster.
+- insert:
+    - id: cost-gate
+      name: dsh-cost-gate

@@ -1,0 +1,47 @@
+{
+  "$comment": "cost-gate 价格表。inCNY/outCNY 是每 100 万 token 的人民币价（峰时），谷时按 multiplier 预估。周末（周六/周日，Asia/Shanghai）默认全天谷时；每个模型可用 phasePlan 挂方案，或直接覆盖 valley / weekendValley / thresholdCNY / valleyMultiplier。",
+  "defaultModel": "deepseek-flash",
+  "timezone": "Asia/Shanghai",
+  "thresholdCNY": 0.5,
+  "weekendValley": true,
+  "valley": {
+    "start": "00:30",
+    "end": "08:30",
+    "multiplier": 0.5,
+    "note": "全局默认谷时窗口；模型可用 phasePlan 或 valley 覆盖"
+  },
+  "phasePlans": {
+    "default": {
+      "valley": [{ "start": "00:30", "end": "08:30" }],
+      "weekendValley": true,
+      "multiplier": 0.5
+    },
+    "always": {
+      "valley": [{ "start": "00:00", "end": "24:00" }],
+      "weekendValley": true,
+      "multiplier": 0.5
+    },
+    "night": {
+      "valley": [{ "start": "22:00", "end": "08:30" }],
+      "weekendValley": true,
+      "multiplier": 0.5,
+      "note": "示例方案：把某个模型的 phasePlan 改成 night 即单独按夜间谷时判定"
+    }
+  },
+  "models": {
+    "deepseek-flash": { "inCNY": 2.0, "outCNY": 3.0, "phasePlan": "default" },
+    "deepseek-pro": { "inCNY": 4.0, "outCNY": 8.0, "phasePlan": "default" },
+    "local": {
+      "inCNY": 0,
+      "outCNY": 0,
+      "phasePlan": "always",
+      "thresholdCNY": 0,
+      "note": "本地运行，无外部 token 费用"
+    }
+  },
+  "media": {
+    "minimax-tts": { "unitCNY": 0.01 },
+    "minimax-music": { "unitCNY": 0.2 },
+    "comfyui-local": { "unitCNY": 0 }
+  }
+}
