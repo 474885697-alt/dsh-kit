@@ -84,11 +84,6 @@ function walkSessionFiles(root) {
 
 function readSessionText(file, zstdAvailable) {
   if (!file.endsWith('.zstd')) return fs.readFileSync(file, 'utf8')
-  if (!zstdAvailable) {
-    const error = new Error('zstd 不可用，无法读取压缩会话')
-    error.code = 'zstd-unavailable'
-    throw error
-  }
   if (typeof zlib.zstdDecompressSync === 'function') {
     try {
       return zlib.zstdDecompressSync(fs.readFileSync(file)).toString('utf8')
@@ -238,14 +233,6 @@ function dailyReport(options = {}) {
     errors: 0,
     prices: unit,
   }
-  if (compressed.length && !zstdAvailable) {
-    return {
-      ...base,
-      reason: 'zstd-not-found',
-      text: '每日账单不可用：无系统 zstd 且 Node 不支持 zlib.zstdDecompressSync；可装系统 zstd（Windows 可 winget install zstd）或升级 Node 后重试。',
-    }
-  }
-
   const sessions = []
   let errors = 0
   for (const file of files) {

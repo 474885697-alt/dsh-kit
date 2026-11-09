@@ -68,13 +68,13 @@ check('daily-title-missing', report.top[2].title === '', report.top[2].title)
 check('daily-text', report.text.includes('每日账单') && report.text.includes('Top 10') && report.text.includes('¥0.0088'), report.text.slice(0, 160))
 check('daily-prices', report.prices.input === 2 && report.prices.cached === 0.2 && report.prices.output === 3, report.prices)
 
-// 缺 zstd：只有 .zstd 文件时整体不可用
+// 宿主无 zstd：走 Node helper；坏帧只记读取失败，其余会话照常统计
 const compressed = path.join(sessions, 'session-dddddddd4444')
 fs.mkdirSync(compressed, { recursive: true })
 fs.writeFileSync(path.join(compressed, 'session.v4.jsonl.zstd'), 'dummy', 'utf8')
 const missing = sessionReport.dailyReport({ sessionsDir: sessions, zstdAvailable: false })
-check('daily-no-zstd', missing.supported === false && missing.reason === 'zstd-not-found' && Array.isArray(missing.top) && missing.top.length === 0, { supported: missing.supported, reason: missing.reason })
-check('daily-no-zstd-hint', missing.text.includes('zlib.zstdDecompressSync') && missing.text.includes('升级 Node'), missing.text)
+check('daily-no-zstd', missing.supported === true && missing.errors === 1 && missing.sessions === 3, { supported: missing.supported, errors: missing.errors, sessions: missing.sessions })
+check('daily-no-zstd-hint', missing.text.includes('读取失败'), missing.text)
 fs.rmSync(compressed, { recursive: true, force: true })
 
 // cost_gate 工具接线（plain 夹具不需要 zstd）

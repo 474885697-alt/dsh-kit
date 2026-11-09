@@ -87,12 +87,12 @@ function writeSessionAt(root, dir, records) {
 const emptyReport = sessionReport.dailyReport({ sessionsDir: empty, zstdAvailable: false, now: NOW })
 check('empty-window', emptyReport.supported === true && emptyReport.totals.cny === 0 && emptyReport.sessionsIncluded === 0 && emptyReport.top.length === 0, { totals: emptyReport.totals, included: emptyReport.sessionsIncluded })
 
-// 降级文案同时说明 Node 与系统 zstd 两条路。
+// 宿主无 zstd 时走 Node helper；坏帧只记读取失败，不整体降级。
 const zstdDir = path.join(tmp, 'zstd-sessions')
 fs.mkdirSync(path.join(zstdDir, 'session-ffffffff6666'), { recursive: true })
 fs.writeFileSync(path.join(zstdDir, 'session-ffffffff6666', 'session.v4.jsonl.zstd'), 'dummy')
 const zstd = sessionReport.dailyReport({ sessionsDir: zstdDir, zstdAvailable: false, now: NOW })
-check('zstd-fallback-text', zstd.supported === false && zstd.reason === 'zstd-not-found' && zstd.text.includes('zlib.zstdDecompressSync') && zstd.text.includes('升级 Node'), zstd.text)
+check('zstd-fallback-text', zstd.supported === true && zstd.errors === 1 && zstd.text.includes('读取失败'), zstd.text)
 
 const { apply } = await import('../lib/index.js')
 let tool = null
