@@ -29,6 +29,7 @@ function writeSession(dir, id, title, records) {
 function usage(input, cached, output) {
   return {
     type: 'assistant/message',
+    ts: new Date().toISOString(),
     data: {
       usage: {
         inputTokens: input,
@@ -73,7 +74,7 @@ fs.mkdirSync(compressed, { recursive: true })
 fs.writeFileSync(path.join(compressed, 'session.v4.jsonl.zstd'), 'dummy', 'utf8')
 const missing = sessionReport.dailyReport({ sessionsDir: sessions, zstdAvailable: false })
 check('daily-no-zstd', missing.supported === false && missing.reason === 'zstd-not-found' && Array.isArray(missing.top) && missing.top.length === 0, { supported: missing.supported, reason: missing.reason })
-check('daily-no-zstd-hint', missing.text.includes('zstd') && missing.text.includes('安装'), missing.text)
+check('daily-no-zstd-hint', missing.text.includes('zlib.zstdDecompressSync') && missing.text.includes('升级 Node'), missing.text)
 fs.rmSync(compressed, { recursive: true, force: true })
 
 // cost_gate 工具接线（plain 夹具不需要 zstd）

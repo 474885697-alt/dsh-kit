@@ -188,14 +188,15 @@ function applyInner(ctx) {
   if (typeof ctx.tools?.register === 'function') {
     ctx.effect(() => ctx.tools.register({
       name: 'cost_gate',
-      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。status=true 只读返回当日峰时预算（Asia/Shanghai 自然日上限 ¥10）。report=“daily” 只读生成会话账单；sessionId 检查单会话 input 预算（默认 150k，可配 DSH_SESSION_WARN_TOKENS），handoff=true 写交接草稿。',
+      description: '派活前的成本闸门：按任务模型各自的峰谷方案估价。周末/谷时只预估不拦截；峰时单任务超过该模型阈值且非纯本地运行时拦截。approve=true 时可把本次计划覆盖的工具记入放行。status=true 只读返回当日峰时预算（Asia/Shanghai 自然日上限 ¥10）。report=“daily” 只读生成会话账单（默认今天，可用 days 调整）；sessionId 检查单会话 input 预算（默认 150k，可配 DSH_SESSION_WARN_TOKENS），handoff=true 写交接草稿。',
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
           plan: { type: 'object', description: '任务计划：{ tasks: [{ id, name, model, turns, inTokens, outTokens, local, media: [{ unitCNY, count }] }] }' },
           status: { type: 'boolean', description: '为 true 时只读返回当前峰时预算账本，不估价、不写放行' },
-          report: { type: 'string', enum: ['daily'], description: 'report:"daily" 只读扫描会话生成每日账单（需要系统 zstd 才能读 .zstd 会话）' },
+          report: { type: 'string', enum: ['daily'], description: 'report:"daily" 只读扫描会话生成每日账单（默认今天；days=0 表示全部）' },
+          days: { type: 'integer', minimum: 0, maximum: 365, default: 1, description: 'report:"daily" 的时间窗口：1=今天（Asia/Shanghai），N=最近 N 天，0=全部；默认 1' },
           sessionId: { type: 'string', description: '只检查该会话的 input token 预算，不估价、不写账本；超阈值只提示不阻断' },
           handoff: { type: 'boolean', description: '配合 sessionId：写 docs/tmp/handoff-<sessionShort>.md 交接草稿' },
           now: { type: 'string', description: '可选，ISO 时间，用于测试峰谷判定' },
@@ -221,7 +222,7 @@ function applyInner(ctx) {
           }
         }
         if (args.report === 'daily') {
-          const daily = sessionReport.dailyReport({ now })
+          const daily = sessionReport.dailyReport({ now, days: args.days ?? 1 })
           return { ok: true, ...daily }
         }
         if (args.sessionId) {

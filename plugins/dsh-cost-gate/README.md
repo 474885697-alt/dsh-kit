@@ -54,15 +54,18 @@
 
 ```json
 { "report": "daily" }
+{ "report": "daily", "days": 7 }
+{ "report": "daily", "days": 0 }
 { "sessionId": "session-xxxxxxxx", "handoff": true }
 ```
 
 - `report: "daily"`：扫描 `DSH_SESSIONS_DIR`（默认 `~/.dsh/sessions`）下的 `*.jsonl` / `*.jsonl.zstd`，按 `assistant/message.data.usage` 聚合 input / cached / output 与估算 ¥，列出 Top 10 会话。
-- 压缩会话用系统 `zstd -dc`；**不新增 npm 依赖**。有 `.zstd` 文件但 `where zstd` 找不到时返回 `supported: false` 并提示安装；只有未压缩 `.jsonl` 时不需要 zstd。
+- 时间窗口：默认 `days: 1`＝今天（Asia/Shanghai 自然日 00:00–24:00）；`days: N`＝含今天在内的最近 N 天；`days: 0`（或 `all: true`）＝全部会话（旧口径）。只统计事件时间（`ts` / `time`）落在窗口内的 usage，返回 `window`、`sessionsScanned`、`sessionsIncluded`。
+- 压缩会话优先用 Node 内置 `zlib.zstdDecompressSync`，否则用系统 `zstd -dc`；两者都不可用且存在 `.zstd` 时返回 `supported: false`，提示“无系统 zstd 且 Node 不支持 zlib.zstdDecompressSync；可装系统 zstd 或升级 Node”。**不新增 npm 依赖**；只有未压缩 `.jsonl` 时不需要 zstd。
 - 单价由 env `DSH_PRICE_INPUT` / `DSH_PRICE_CACHED` / `DSH_PRICE_OUTPUT` 指定，单位元/百万 token，默认 `2 / 0.2 / 3`。
 - `sessionId`：累计该会话 `usage.inputTokens`，超过 `DSH_SESSION_WARN_TOKENS`（默认 150000）时返回 `sessionBudget.warn: true`，只提示；`cacheReadTokens` 另见 `cachedTokens` / `contextTokens`。
 - `handoff: true`：写 `docs/tmp/handoff-<sessionShort>.md` 草稿（目标 / 已完成 / 待做 / 下一步，≤40 行），返回路径；`docs/tmp` 已 gitignore，不提交。
-- 验收：`node plugins/dsh-cost-gate/test/daily-report.test.mjs`、`node plugins/dsh-cost-gate/test/session-budget.test.mjs`。
+- 验收：`node plugins/dsh-cost-gate/test/daily-report.test.mjs`、`node plugins/dsh-cost-gate/test/session-report.test.mjs`、`node plugins/dsh-cost-gate/test/session-budget.test.mjs`。
 
 单卡自检：
 

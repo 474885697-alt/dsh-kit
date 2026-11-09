@@ -100,14 +100,21 @@ function readSessionText(file, zstdAvailable) {
     maxBuffer: 128 * 1024 * 1024,
     windowsHide: true,
   })
-  if (out.error) throw out.error
-  if (out.status !== 0) {
-    const stderr = out.stderr ? out.stderr.toString('utf8').trim() : ''
-    const error = new Error(`zstd -dc 失败（${out.status}）${stderr ? '：' + stderr : ''}`)
-    error.code = 'zstd-failed'
-    throw error
-  }
-  return out.stdout.toString('utf8')
+  if (!out.error && out.status === 0) return out.stdout.toString('utf8')
+  // 宿主 Node 的 zstd 不可用 / 系统无 zstd 时，交给本机 Node（≥22.15）解压。
+  const helper = "const fs=require('fs'),z=require('zlib');"
+    + "try{process.stdout.write(z.zstdDecompressSync(fs.readFileSync(process.argv[1])).toString('utf8'))}"
+    + "catch(e){process.stderr.write(String((e&&e.message)||e));process.exit(2)}"
+  const node = spawnSync(process.env.DSH_NODE || 'node', ['-e', helper, file], {
+    maxBuffer: 256 * 1024 * 1024,
+    windowsHide: true,
+  })
+  if (!node.error && node.status === 0) return node.stdout.toString('utf8')
+  const stderr = out.stderr ? out.stderr.toString('utf8').trim() : ''
+  const reason = out.error ? out.error.message : `zstd -dc 失败（${out.status}）${stderr ? '：' + stderr : ''}`
+  const error = new Error(reason)
+  error.code = 'zstd-failed'
+  throw error
 }
 
 function shortId(id) {
@@ -128,7 +135,39 @@ function usageOf(record) {
   }
 }
 
-function parseSession(text, file) {
+function eventTime(record) {
+  const raw = record && (record.ts ?? record.time ?? record.createdAt
+    ?? (record.data && (record.data.ts ?? record.data.time)))
+  if (raw === undefined || raw === null || raw === '') return null
+  if (typeof raw === 'number') return raw < 1e12 ? raw * 1000 : raw
+  const parsed = Date.parse(String(raw))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function chinaDayStart(ms) {
+  const local = new Date(ms + SHANGHAI_OFFSET_MS)
+  return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - SHANGHAI_OFFSET_MS
+}
+
+function reportWindow(options = {}) {
+  const rawDays = Number(options.days)
+  const hasDays = options.days !== undefined && options.days !== null && options.days !== ''
+  if (options.all === true || (hasDays && rawDays === 0)) {
+    return { all: true, days: 0, from: null, to: null }
+  }
+  let days = Number.isFinite(rawDays) && rawDays >= 1 ? Math.floor(rawDays) : 1
+  days = Math.min(365, days)
+  let nowMs = options.now instanceof Date ? options.now.getTime() : Date.parse(String(options.now || ''))
+  if (!Number.isFinite(nowMs)) nowMs = Date.now()
+  const today = chinaDayStart(nowMs)
+  return { all: false, days, from: today - (days - 1) * DAY_MS, to: today + DAY_MS }
+}
+
+function parseSession(text, file, options = {}) {
+  const window = options.window || null
   const dirId = path.basename(path.dirname(file))
   let id = dirId
   let title = ''
@@ -153,6 +192,10 @@ function parseSession(text, file) {
     } else if (record.type === 'assistant/message') {
       const usage = usageOf(record)
       if (!usage) continue
+      if (window && !window.all) {
+        const at = eventTime(record)
+        if (at === null || at < window.from || at >= window.to) continue
+      }
       requests += 1
       input += usage.input
       cached += usage.cached
@@ -176,10 +219,19 @@ function dailyReport(options = {}) {
   const files = walkSessionFiles(root)
   const compressed = files.filter((file) => file.endsWith('.zstd'))
   const unit = prices()
+  const window = reportWindow(options)
+  const windowInfo = {
+    from: window.all ? null : new Date(window.from).toISOString(),
+    to: window.all ? null : new Date(window.to).toISOString(),
+    days: window.days,
+  }
   const base = {
     supported: false,
     reason: null,
     sessionsDir: root,
+    window: windowInfo,
+    sessionsScanned: files.length,
+    sessionsIncluded: 0,
     sessions: 0,
     totals: { input: 0, cached: 0, output: 0, cny: 0 },
     top: [],
@@ -190,7 +242,7 @@ function dailyReport(options = {}) {
     return {
       ...base,
       reason: 'zstd-not-found',
-      text: '每日账单不可用：未找到系统 zstd，无法读取压缩会话。请安装 zstd 后重试（Windows 可 winget install zstd；Linux/macOS 可用包管理器安装）。',
+      text: '每日账单不可用：无系统 zstd 且 Node 不支持 zlib.zstdDecompressSync；可装系统 zstd（Windows 可 winget install zstd）或升级 Node 后重试。',
     }
   }
 
@@ -198,7 +250,8 @@ function dailyReport(options = {}) {
   let errors = 0
   for (const file of files) {
     try {
-      const parsed = parseSession(readSessionText(file, zstdAvailable), file)
+      const parsed = parseSession(readSessionText(file, zstdAvailable), file, { window })
+      if (!parsed.requests) continue
       parsed.cny = cny(costOf(parsed.input, parsed.cached, parsed.output, unit))
       sessions.push(parsed)
     } catch {
@@ -224,9 +277,15 @@ function dailyReport(options = {}) {
     output: item.output,
     cny: item.cny,
   }))
+  const windowLabel = window.all
+    ? '全部会话'
+    : (window.days === 1 ? '今天' : `最近 ${window.days} 天`)
+  const rangeText = window.all
+    ? '全部时间'
+    : `${windowInfo.from} 至 ${windowInfo.to}`
   const lines = [
-    `每日账单：${sessions.length} 个会话；input ${totals.input} / cached ${totals.cached} / output ${totals.output}；估算 ¥${totals.cny.toFixed(4)}`,
-    `单价（元/百万）：input ${unit.input} / cached ${unit.cached} / output ${unit.output}`,
+    `每日账单（${windowLabel}，${rangeText}）：${sessions.length} 个会话；input ${totals.input} / cached ${totals.cached} / output ${totals.output}；估算 ¥${totals.cny.toFixed(4)}`,
+    `扫描 ${files.length} 个会话文件，窗口内 ${sessions.length} 个；单价（元/百万）：input ${unit.input} / cached ${unit.cached} / output ${unit.output}`,
   ]
   if (top.length) {
     lines.push('Top 10（按估算 ¥）：')
@@ -243,6 +302,7 @@ function dailyReport(options = {}) {
     ...base,
     supported: true,
     sessions: sessions.length,
+    sessionsIncluded: sessions.length,
     totals,
     top,
     errors,
